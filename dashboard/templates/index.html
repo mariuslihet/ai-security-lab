@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Security Lab // SecOps Control Plane</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jetbrains-mono@1.0.6/css/jetbrains-mono.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            zinc: {
+              750: '#232328',
+              850: '#141417',
+              900: '#111114',
+              950: '#09090b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-zinc-950 text-zinc-100 font-sans antialiased min-h-screen flex flex-col border-t-2 border-emerald-500 selection:bg-emerald-500 selection:text-black">
+
+  <!-- SecOps Top Navigation Bar -->
+  <header class="border-b border-zinc-800/80 px-6 py-3 flex items-center justify-between bg-zinc-900/60 backdrop-blur sticky top-0 z-50">
+    <div class="flex items-center space-x-3.5">
+      <div class="h-7 w-7 rounded-md bg-zinc-850 border border-zinc-700/80 flex items-center justify-center text-emerald-400 font-mono text-xs font-bold shadow-sm">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <span class="font-mono text-xs font-bold tracking-wider text-zinc-100">AI-SECURITY-LAB</span>
+          <span class="text-zinc-600 font-mono text-xs">/</span>
+          <span class="font-mono text-xs text-zinc-400">CONTROL-PLANE</span>
+          <span class="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.2 rounded border border-zinc-700 font-mono">MVP-PRO</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cluster Status Indicators -->
+    <div class="flex items-center space-x-6 text-xs font-mono">
+      <div class="hidden sm:flex items-center space-x-2 text-zinc-400">
+        <span class="text-zinc-500">ENGINES:</span>
+        <span class="text-zinc-300">OPENAI / CLAUDE / AZURE / BEDROCK</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="h-2 w-2 rounded-full bg-emerald-500 pulse-subtle" id="status-dot"></span>
+        <span class="text-emerald-400 font-semibold" id="status-text">STANDBY</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Security Operations Workspace -->
+  <main class="flex-1 grid grid-cols-12 gap-6 p-6 max-w-[1850px] w-full mx-auto">
+    
+    <!-- Left Configuration Panel -->
+    <aside class="col-span-12 lg:col-span-4 space-y-6">
+      
+      <!-- Execution Controller Card -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none"></div>
+
+        <div class="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3">
+          <h2 class="text-xs font-mono font-bold tracking-widest text-zinc-300 uppercase flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-emerald-400 text-xs"></i>
+            <span>Attack Vector Controller</span>
+          </h2>
+          <span class="text-[10px] font-mono text-zinc-500 uppercase">v2.4 Core</span>
+        </div>
+
+        <form id="sim-form" onsubmit="runSimulation(event)" class="space-y-4 text-xs font-sans">
+          
+          <!-- LLM Provider Select -->
+          <div>
+            <label class="block font-mono text-[11px] text-zinc-400 mb-1.5 uppercase tracking-wider">Foundation Model Provider</label>
+            <select id="provider" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-mono text-xs focus:border-zinc-600 focus:outline-none transition-colors">
+              <option value="anthropic">Anthropic Claude API</option>
+              <option value="openai">OpenAI API</option>
+              <option value="azure">Azure AI Service</option>
+              <option value="bedrock">AWS Bedrock Runtime</option>
+            </select>
+          </div>
+
+          <!-- Dynamic Model Identifier Input -->
+          <div>
+            <label class="block font-mono text-[11px] text-zinc-400 mb-1.5 uppercase tracking-wider flex justify-between">
+              <span>Model Identifier</span>
+              <span class="text-zinc-500 lowercase">(optional override)</span>
+            </label>
+            <input type="text" id="model_id" placeholder="default provider model (or custom ID)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-mono text-xs focus:border-zinc-600 focus:outline-none placeholder:text-zinc-600 transition-colors">
+          </div>
+
+          <!-- Attack Vector Select -->
+          <div>
+            <label class="block font-mono text-[11px] text-zinc-400 mb-1.5 uppercase tracking-wider">Simulation Scenario / Vector</label>
+            <select id="attack_type" onchange="handleAttackTypeChange()" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-mono text-xs focus:border-zinc-600 focus:outline-none transition-colors">
+              <option value="direct_prompt_injection">Direct Prompt Injection (System Override)</option>
+              <option value="multi_turn_crescendo">Multi-Turn Crescendo Escalation (4-Turn Progressive Conditioning)</option>
+              <option value="rag_data_poisoning">RAG Context Data Poisoning (Indirect Injection)</option>
+              <option value="jailbreak_roleplay">Jailbreak / Unrestricted Persona Override</option>
+              <option value="delimiter_hijacking">Delimiter & Structural Prompt Breakout</option>
+              <option value="pii_exfiltration">PII & Secret Exfiltration (Luhn Payment Card / Key)</option>
+              <option value="canary_extraction">System Canary Token Exfiltration</option>
+              <option value="custom">Custom Adversarial Payload...</option>
+            </select>
+          </div>
+
+          <!-- Custom Payload Textarea -->
+          <div id="custom-prompt-wrapper" class="hidden">
+            <label class="block font-mono text-[11px] text-zinc-400 mb-1.5 uppercase tracking-wider">Custom Prompt Payload</label>
+            <textarea id="custom-prompt-input" rows="3" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-zinc-200 font-mono text-xs focus:border-zinc-600 focus:outline-none placeholder:text-zinc-600" placeholder="Type customized injection payload..."></textarea>
+          </div>
+
+          <!-- Active Guardrails Toggle -->
+          <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between">
+            <div>
+              <div class="font-mono text-xs text-zinc-200 font-semibold flex items-center gap-1.5">
+                <i class="fa-solid fa-shield-virus text-emerald-400"></i>
+                <span>Enforce Guardrails</span>
+              </div>
+              <div class="text-[11px] text-zinc-500">Perimeter & egress security filters</div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="guardrails" checked class="sr-only peer">
+              <div class="w-10 h-5 bg-zinc-950 border border-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white"></div>
+            </label>
+          </div>
+
+          <!-- Action Button -->
+          <button type="submit" id="submit-btn" class="w-full bg-zinc-100 hover:bg-white text-zinc-950 font-mono font-bold text-xs uppercase py-2.5 rounded-lg transition-all tracking-wider flex items-center justify-center space-x-2 shadow-sm hover:shadow-emerald-500/10">
+            <i class="fa-solid fa-play mr-1"></i>
+            <span>Execute Attack Simulation</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Quantitative KPI Cards -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-sm">
+          <div class="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">Hardened Robustness</div>
+          <div class="text-2xl font-mono font-bold text-emerald-400 mt-1" id="stat-hardened">100.0%</div>
+          <div class="text-[10px] text-zinc-500 mt-1 flex items-center gap-1">
+            <i class="fa-solid fa-check text-emerald-500"></i> Active defenses
+          </div>
+        </div>
+
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-sm">
+          <div class="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">Raw Model ASR</div>
+          <div class="text-2xl font-mono font-bold text-red-400 mt-1" id="stat-raw-asr">0.0%</div>
+          <div class="text-[10px] text-zinc-500 mt-1 flex items-center gap-1" id="stat-probes-total">
+            0 probes audited
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Benchmark Shortcut -->
+      <div class="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 text-xs font-mono text-zinc-400">
+        <div class="flex items-center justify-between text-zinc-300 mb-2">
+          <span class="font-bold flex items-center gap-1.5">
+            <i class="fa-solid fa-terminal text-cyan-400"></i> CLI Quick Command
+          </span>
+          <span class="text-[10px] text-zinc-500">Typer CLI</span>
+        </div>
+        <div class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800 text-[11px] text-zinc-300 overflow-x-auto select-all">
+          python main.py run-lab --provider anthropic
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Right Live Telemetry & Log Console -->
+    <section class="col-span-12 lg:col-span-8 flex flex-col">
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl flex-1 flex flex-col min-h-[580px] shadow-lg overflow-hidden">
+        
+        <!-- Console Header -->
+        <div class="border-b border-zinc-800 px-4 py-3 flex items-center justify-between bg-zinc-950/70 backdrop-blur">
+          <div class="flex items-center space-x-3 font-mono text-xs">
+            <div class="flex space-x-1.5">
+              <span class="h-2.5 w-2.5 rounded-full bg-zinc-700"></span>
+              <span class="h-2.5 w-2.5 rounded-full bg-zinc-700"></span>
+              <span class="h-2.5 w-2.5 rounded-full bg-zinc-700"></span>
+            </div>
+            <span class="text-zinc-400 uppercase tracking-wider font-semibold">Real-Time Defense & Inference Telemetry</span>
+          </div>
+          <div class="flex items-center space-x-3">
+            <button onclick="clearConsole()" class="font-mono text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-1">
+              <i class="fa-solid fa-trash-can text-[10px]"></i>
+              <span>Clear Stream</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Terminal Output Body -->
+        <div id="console-output" class="p-4 font-mono text-xs space-y-1.5 flex-1 overflow-y-auto max-h-[720px] text-zinc-300 bg-zinc-950 secops-grid">
+          <div class="text-zinc-600">// AI Security Lab WebSocket listener initialized.</div>
+          <div class="text-zinc-600">// Select foundation model provider and trigger attack vector to stream execution telemetry.</div>
+        </div>
+
+        <!-- Telemetry Footer Status -->
+        <div class="border-t border-zinc-800 px-4 py-2 bg-zinc-950/80 text-[11px] font-mono text-zinc-500 flex items-center justify-between">
+          <div class="flex items-center space-x-4">
+            <span>SOCKET: <span class="text-emerald-400">CONNECTED</span></span>
+            <span>GUARDRAILS: <span class="text-zinc-300">HEURISTIC + LUHN + CANARY</span></span>
+          </div>
+          <div class="text-zinc-500">PROTOCOL: WS/JSON-RPC</div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Technical Documentation & Architecture Specifications Section -->
+  <section class="max-w-[1850px] w-full mx-auto px-6 pb-8">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-lg">
+      <div class="border-b border-zinc-800 px-5 py-3.5 bg-zinc-950/70 flex items-center justify-between">
+        <div class="flex items-center space-x-2 font-mono text-xs">
+          <i class="fa-solid fa-book text-zinc-400"></i>
+          <span class="text-zinc-200 uppercase font-bold tracking-wider">Engineering Documentation & Specifications</span>
+          <span class="text-zinc-500 font-normal">(/docs)</span>
+        </div>
+        <span class="text-[11px] font-mono text-zinc-500" id="doc-viewer-title">ARCHITECTURE.md</span>
+      </div>
+
+      <div class="grid grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-800">
+        <!-- Document Navigator Sidebar -->
+        <div class="col-span-12 lg:col-span-3 p-4 bg-zinc-950/50 space-y-2" id="docs-list-container">
+          <div class="text-xs text-zinc-500">Loading documentation index...</div>
+        </div>
+
+        <!-- Document Viewer Content Area -->
+        <div class="col-span-12 lg:col-span-9 p-6 bg-zinc-950 max-h-[500px] overflow-y-auto font-mono text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed select-text" id="doc-viewer-content">
+          Select a technical specification from the navigation panel.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-zinc-800 py-4 px-6 text-xs text-zinc-500 bg-zinc-950 flex flex-col sm:flex-row justify-between items-center gap-2">
+    <div>AI Security Lab // Open-Source LLM Red-Teaming & Guardrail Evaluation. Apache 2.0 License.</div>
+    <div class="font-mono text-zinc-400">FastAPI // WebSockets // Python 3.11+</div>
+  </footer>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
