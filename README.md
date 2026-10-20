@@ -35,41 +35,41 @@ Audits AI pipelines against adversarial attacks, direct prompt injections, multi
 
 ```mermaid
 graph TD
-    subgraph Client & Test Data
-        CLI[Typer CLI / main.py]
-        WebUI[SecOps Control Plane / WebSocket]
-        Loader[Harness Test Loader: data/*.yaml]
+    subgraph ClientAndData["Client & Test Data"]
+        CLI["Typer CLI / main.py"]
+        WebUI["SecOps Control Plane / WebSocket"]
+        Loader["Harness Test Loader: data/*.yaml"]
     end
 
-    subgraph Defense Layer 1: Perimeter Input Guardrails
-        IEngine[GuardrailEngine: inspect_input]
-        PI[Prompt Injection & Delimiter Detector]
-        PII_IN[PII / Credential Scanner Luhn + Regex]
-        Dec[Base64 De-obfuscation Engine]
+    subgraph DefenseLayer1["Defense Layer 1: Perimeter Input Guardrails"]
+        IEngine["GuardrailEngine: inspect_input"]
+        PI["Prompt Injection & Delimiter Detector"]
+        PII_IN["PII / Credential Scanner Luhn + Regex"]
+        Dec["Base64 De-obfuscation Engine"]
     end
 
-    subgraph Foundation Model Layer: Unified Core Client
-        Factory[Provider Client Factory]
-        Claude[Anthropic Claude API Client]
-        OpenAI[OpenAI API Client]
-        Azure[Azure AI Service Client]
-        Bedrock[AWS Bedrock Runtime Client]
+    subgraph FoundationModelLayer["Foundation Model Layer: Unified Core Client"]
+        Factory["Provider Client Factory"]
+        Claude["Anthropic Claude API Client"]
+        OpenAI["OpenAI API Client"]
+        Azure["Azure AI Service Client"]
+        Bedrock["AWS Bedrock Runtime Client"]
     end
 
-    subgraph Defense Layer 2: Output Egress Inspection
-        OEngine[GuardrailEngine: inspect_output]
-        Canary[Canary Leak & System Secret Detector]
-        Safety[Adversarial Compliance & Safe Refusal Checker]
-        PII_OUT[Output PII Masking & Scrubbing]
+    subgraph DefenseLayer2["Defense Layer 2: Output Egress Inspection"]
+        OEngine["GuardrailEngine: inspect_output"]
+        Canary["Canary Leak & System Secret Detector"]
+        Safety["Adversarial Compliance & Safe Refusal Checker"]
+        PII_OUT["Output PII Masking & Scrubbing"]
     end
 
-    subgraph Telemetry, Forensic Reports & Evaluation Layer
-        Evaluator[Security Evaluator & Metrics Engine]
-        RiskScorer[Threat Category & Risk Classifier]
-        SimReporter[SimulationReportGenerator Forensic Engine]
-        RepMD[Markdown Audit Report Generator]
-        RepHTML[Report Document Viewer & PDF Engine]
-        RepJSON[JSON CI/CD Gate Exporter]
+    subgraph TelemetryAndReports["Telemetry, Forensic Reports & Evaluation Layer"]
+        Evaluator["Security Evaluator & Metrics Engine"]
+        RiskScorer["Threat Category & Risk Classifier"]
+        SimReporter["SimulationReportGenerator Forensic Engine"]
+        RepMD["Markdown Audit Report Generator"]
+        RepHTML["Report Document Viewer & PDF Engine"]
+        RepJSON["JSON CI/CD Gate Exporter"]
     end
 
     CLI --> Loader
