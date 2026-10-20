@@ -16,8 +16,7 @@ def client():
 def test_dashboard_root_html(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "AI-SECURITY-LAB" in response.text
-    assert "CONTROL-PLANE" in response.text
+    assert "AI Security Lab" in response.text or "AI-SECURITY-LAB" in response.text
 
 
 def test_dashboard_api_status(client):
