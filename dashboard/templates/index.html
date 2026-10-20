@@ -3,9 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="application-name" content="AI-SECURITY-LAB CONTROL-PLANE">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>AI Security Lab</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=20261020_08">
+  <script>
+    // Universal resilience shim: ensure stubs exist immediately
+    window.handleConfigChange = window.handleConfigChange || function() {};
+    window.handleVectorChange = window.handleVectorChange || function() {};
+    window.runSimulation = window.runSimulation || function() {};
+    window.toggleGuardrails = window.toggleGuardrails || function() {};
+    window.switchTab = window.switchTab || function() {};
+    window.loadReports = window.loadReports || function() {};
+    window.loadReportsCatalog = window.loadReportsCatalog || function() {};
+    window.loadDocs = window.loadDocs || function() {};
+    window.loadDocsCatalog = window.loadDocsCatalog || function() {};
+    window.loadDocument = window.loadDocument || function() {};
+    window.viewDoc = window.viewDoc || function() {};
+    window.viewReport = window.viewReport || function() {};
+    window.closeReportViewer = window.closeReportViewer || function() {};
+    window.generateNewReport = window.generateNewReport || function() {};
+    window.generateReport = window.generateReport || function() {};
+    window.copyCliSnippet = window.copyCliSnippet || function() {};
+    window.runSuite = window.runSuite || function() {};
+    window.viewLastSimReport = window.viewLastSimReport || function() {};
+    window.closeSimReport = window.closeSimReport || function() {};
+  </script>
 </head>
 <body>
 
@@ -37,335 +61,426 @@
   <!-- App Layout -->
   <div class="app-container">
 
-    <!-- Left 288px Sidebar Form -->
-    <aside class="sidebar">
+    <!-- TAB 1: SIMULATE (Sidebar + Main Workspace) -->
+    <div class="tab-content active" id="view-simulate">
 
-      <!-- Provider -->
-      <div class="field-group">
-        <label for="provider" class="field-label">Provider</label>
-        <select id="provider" class="input-select" onchange="handleConfigChange()">
-          <option value="anthropic">Anthropic Claude</option>
-          <option value="openai">OpenAI</option>
-          <option value="azure">Azure AI</option>
-          <option value="bedrock">AWS Bedrock</option>
-        </select>
-      </div>
+      <!-- Left 288px Sidebar Form -->
+      <aside class="sidebar">
 
-      <!-- Model ID -->
-      <div class="field-group">
-        <label for="model_id" class="field-label">
-          <span>Model ID</span>
-          <span class="field-hint">Optional override</span>
-        </label>
-        <input type="text" id="model_id" class="input-text" placeholder="e.g. claude-sonnet-latest" oninput="handleConfigChange()">
-      </div>
-
-      <!-- Attack Vector -->
-      <div class="field-group">
-        <label for="attack_type" class="field-label">Attack vector</label>
-        <select id="attack_type" class="input-select" onchange="handleConfigChange()">
-          <option value="direct_prompt_injection">Direct Prompt Injection</option>
-          <option value="multi_turn_crescendo">Multi-Turn Crescendo (4-turn)</option>
-          <option value="rag_data_poisoning">RAG Indirect Injection</option>
-          <option value="jailbreak_roleplay">Jailbreak / Persona Override</option>
-          <option value="delimiter_hijacking">Delimiter Breakout</option>
-          <option value="pii_exfiltration">PII & Secret Exfiltration</option>
-          <option value="canary_extraction">Canary Token Extraction</option>
-          <option value="custom">Custom Payload</option>
-        </select>
-      </div>
-
-      <!-- Custom Prompt Textarea (Conditional) -->
-      <div class="field-group" id="custom-payload-group" style="display: none;">
-        <label for="custom_prompt" class="field-label">Custom prompt</label>
-        <textarea id="custom_prompt" class="input-textarea" rows="3" placeholder="Enter adversarial probe payload..." oninput="handleConfigChange()"></textarea>
-      </div>
-
-      <!-- Guardrails Switch -->
-      <div class="toggle-row">
-        <div class="toggle-info">
-          <span class="toggle-title">Guardrails</span>
-          <span class="toggle-helper">Perimeter and egress security inspection</span>
+        <!-- Provider -->
+        <div class="field-group">
+          <label for="provider" class="field-label">Provider</label>
+          <select id="provider" class="input-select" onchange="handleConfigChange()">
+            <option value="anthropic">Anthropic Claude</option>
+            <option value="openai">OpenAI</option>
+            <option value="azure">Azure AI</option>
+            <option value="bedrock">AWS Bedrock</option>
+          </select>
         </div>
-        <button type="button" role="switch" aria-checked="true" class="switch-control active" id="guardrails-switch" onclick="toggleGuardrails()">
-          <span class="switch-thumb"></span>
+
+        <!-- Model ID -->
+        <div class="field-group">
+          <label for="model_id" class="field-label">
+            <span>Model ID</span>
+            <span class="field-hint">Optional override</span>
+          </label>
+          <input type="text" id="model_id" class="input-text" placeholder="e.g. claude-sonnet-latest" oninput="handleConfigChange()">
+        </div>
+
+        <!-- Attack Vector -->
+        <div class="field-group">
+          <label for="attack_type" class="field-label">Attack vector</label>
+          <select id="attack_type" class="input-select" onchange="handleConfigChange()">
+            <option value="direct_prompt_injection">Direct Prompt Injection</option>
+            <option value="multi_turn_crescendo">Multi-Turn Crescendo (4-turn)</option>
+            <option value="rag_data_poisoning">RAG Indirect Injection</option>
+            <option value="jailbreak_roleplay">Jailbreak / Persona Override</option>
+            <option value="delimiter_hijacking">Delimiter Breakout</option>
+            <option value="pii_exfiltration">PII & Secret Exfiltration</option>
+            <option value="canary_extraction">Canary Token Extraction</option>
+            <option value="custom">Custom Payload</option>
+          </select>
+        </div>
+
+        <!-- Custom Prompt Textarea (Conditional) -->
+        <div class="field-group" id="custom-payload-group" style="display: none;">
+          <label for="custom_prompt" class="field-label">Custom prompt</label>
+          <textarea id="custom_prompt" class="input-textarea" rows="3" placeholder="Enter adversarial probe payload..." oninput="handleConfigChange()"></textarea>
+        </div>
+        <!-- Compatibility fallback anchors for legacy cached JS -->
+        <div id="custom-wrapper" style="display: none;">
+          <input type="hidden" id="custom-input" value="">
+        </div>
+
+        <!-- Guardrails Switch -->
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-title">Guardrails</span>
+            <span class="toggle-helper">Perimeter and egress security inspection</span>
+          </div>
+          <button type="button" role="switch" aria-checked="true" class="switch-control active" id="guardrails-switch" onclick="toggleGuardrails()">
+            <span class="switch-thumb"></span>
+          </button>
+        </div>
+
+        <!-- Run Simulation Button -->
+        <button class="btn-primary" id="run-btn" onclick="runSimulation()">Run simulation</button>
+
+        <!-- Run Suite Button -->
+        <button class="btn-secondary" id="run-suite-btn" onclick="runSuite()" style="width: 100%;">
+          Run full suite
         </button>
-      </div>
+        <div class="field-hint" style="margin-top: 4px;">Runs all probes in the selected attack family</div>
 
-      <!-- Run Simulation Button -->
-      <button class="btn-primary" id="run-btn" onclick="runSimulation()">Run simulation</button>
-
-      <!-- CLI Snippet Box -->
-      <div class="cli-container">
-        <div class="cli-header">
-          <span class="cli-label">CLI equivalent</span>
-          <button class="cli-copy-btn" id="cli-copy-btn" onclick="copyCliSnippet()">Copy</button>
+        <!-- Batch Progress Bar (hidden until suite starts) -->
+        <div id="batch-progress-wrapper" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 12px; color: var(--text-secondary);" id="batch-status-text">Running probe 1 of 5...</span>
+            <span class="tabular-nums" style="font-size: 12px; color: var(--text-muted);" id="batch-pct">0%</span>
+          </div>
+          <div style="height: 3px; background: var(--border); border-radius: 2px; overflow: hidden;">
+            <div id="batch-progress-bar" style="height: 100%; width: 0%; background: var(--btn-primary-bg); border-radius: 2px; transition: width 0.3s ease;"></div>
+          </div>
+          <div id="batch-probe-log" style="margin-top: 8px; display: flex; flex-direction: column; gap: 3px; max-height: 120px; overflow-y: auto;"></div>
         </div>
-        <code class="cli-snippet" id="cli-snippet">python main.py run-lab --provider anthropic --suite prompt_injections</code>
-      </div>
 
-    </aside>
+        <!-- CLI Snippet Box -->
+        <div class="cli-container">
+          <div class="cli-header">
+            <span class="cli-label">CLI equivalent</span>
+            <button class="cli-copy-btn" id="cli-copy-btn" onclick="copyCliSnippet()">Copy</button>
+          </div>
+          <code class="cli-snippet" id="cli-snippet">python main.py run-lab --provider anthropic --suite prompt_injections</code>
+        </div>
 
-    <!-- Main Views -->
+      </aside>
 
-    <!-- TAB 1: SIMULATE -->
-    <main class="main-workspace tab-content active" id="view-simulate">
+      <!-- Main Simulate Workspace -->
+      <main class="main-workspace">
 
-      <!-- Header: Run #N + Status Badge -->
-      <section class="run-header">
-        <div class="run-heading-group">
-          <h1 class="run-title" id="run-title">Run #1</h1>
-          <div class="run-meta" id="run-meta">Anthropic Claude · Direct Prompt Injection · Ready</div>
-        </div>
-        <div>
-          <span class="status-badge badge-idle" id="run-badge">Ready</span>
-        </div>
-      </section>
-
-      <!-- ONE Bordered Strip with Four Metrics -->
-      <section class="metrics-strip">
-        <div class="metric-col">
-          <span class="metric-label">Robustness</span>
-          <span class="metric-val" id="metric-robustness">—</span>
-          <span class="metric-sub" id="metric-robustness-sub">0 probes audited</span>
-        </div>
-        <div class="metric-col">
-          <span class="metric-label">Raw ASR</span>
-          <span class="metric-val" id="metric-asr">—</span>
-          <span class="metric-sub" id="metric-asr-sub">0 exposed</span>
-        </div>
-        <div class="metric-col">
-          <span class="metric-label">Latency</span>
-          <span class="metric-val" id="metric-latency">—</span>
-          <span class="metric-sub" id="metric-latency-sub">Total execution</span>
-        </div>
-        <div class="metric-col">
-          <span class="metric-label">Tokens used</span>
-          <span class="metric-val" id="metric-tokens">—</span>
-          <span class="metric-sub" id="metric-tokens-sub">Perimeter & model</span>
-        </div>
-      </section>
-
-      <!-- Trace Table Card -->
-      <section class="card">
-        <div class="card-header">
+        <!-- Header: Run #N + Status Badge -->
+        <section class="run-header">
+          <div class="run-heading-group">
+            <h1 class="run-title" id="run-title">Run #1</h1>
+            <div class="run-meta" id="run-meta">Anthropic Claude · Direct Prompt Injection · Ready</div>
+          </div>
           <div>
-            <h2 class="card-title">Trace</h2>
-            <div class="card-subtitle">Sequential defense-in-depth pipeline execution</div>
-          </div>
-          <span class="status-badge badge-idle" id="trace-stage-indicator">4 stages</span>
-        </div>
-
-        <table class="trace-table">
-          <thead>
-            <tr>
-              <th style="width: 170px;">Stage</th>
-              <th>Result</th>
-              <th style="width: 140px;">Timing</th>
-              <th style="width: 80px; text-align: right;">Duration</th>
-            </tr>
-          </thead>
-          <tbody id="trace-tbody">
-            <tr class="trace-row" id="row-ingest">
-              <td class="stage-name">Attack received</td>
-              <td class="stage-result" id="res-ingest">Awaiting execution</td>
-              <td>
-                <div class="timing-track">
-                  <div class="timing-bar" id="bar-ingest"></div>
-                </div>
-              </td>
-              <td class="duration-val" id="dur-ingest">—</td>
-            </tr>
-            <tr class="trace-row" id="row-guardrail-in">
-              <td class="stage-name">Input guardrail</td>
-              <td class="stage-result" id="res-guardrail-in">Awaiting execution</td>
-              <td>
-                <div class="timing-track">
-                  <div class="timing-bar" id="bar-guardrail-in"></div>
-                </div>
-              </td>
-              <td class="duration-val" id="dur-guardrail-in">—</td>
-            </tr>
-            <tr class="trace-row" id="row-inference">
-              <td class="stage-name">Model call</td>
-              <td class="stage-result" id="res-inference">Awaiting execution</td>
-              <td>
-                <div class="timing-track">
-                  <div class="timing-bar" id="bar-inference"></div>
-                </div>
-              </td>
-              <td class="duration-val" id="dur-inference">—</td>
-            </tr>
-            <tr class="trace-row" id="row-guardrail-out">
-              <td class="stage-name">Output guardrail</td>
-              <td class="stage-result" id="res-guardrail-out">Awaiting execution</td>
-              <td>
-                <div class="timing-track">
-                  <div class="timing-bar" id="bar-guardrail-out"></div>
-                </div>
-              </td>
-              <td class="duration-val" id="dur-guardrail-out">—</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <!-- Details Section Card -->
-      <section class="card">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">Details</h2>
-            <div class="card-subtitle">Payload inspection and policy attribution</div>
-          </div>
-        </div>
-
-        <div class="details-grid">
-          <div class="detail-item prompt-display" id="detail-prompt">
-            // Select an attack vector and click "Run simulation" to view prompt payload.
-          </div>
-
-          <div class="detail-item">
-            <span class="detail-label">Rule triggered</span>
-            <span class="detail-value" id="detail-rule">—</span>
-          </div>
-
-          <div class="detail-item">
-            <span class="detail-label">Risk level</span>
-            <div id="detail-risk">
-              <span class="status-badge badge-idle">—</span>
+            <span class="status-badge badge-idle" id="run-badge">Ready</span>
+            <div id="view-report-btn-wrapper" style="display: none; margin-top: 8px;">
+              <button class="btn-secondary" id="view-report-btn" onclick="viewLastSimReport()" style="height: 28px; font-size: 12px;">
+                View full report
+              </button>
             </div>
           </div>
+        </section>
 
-          <div class="detail-item">
-            <span class="detail-label">Mitigation layer</span>
-            <span class="detail-value" id="detail-layer">—</span>
+        <!-- ONE Bordered Strip with Four Metrics -->
+        <section class="metrics-strip">
+          <div class="metric-col">
+            <span class="metric-label">Robustness</span>
+            <span class="metric-val" id="metric-robustness">—</span>
+            <span class="metric-sub" id="metric-robustness-sub">0 probes audited</span>
+          </div>
+          <div class="metric-col">
+            <span class="metric-label">Raw ASR</span>
+            <span class="metric-val" id="metric-asr">—</span>
+            <span class="metric-sub" id="metric-asr-sub">0 exposed</span>
+          </div>
+          <div class="metric-col">
+            <span class="metric-label">Latency</span>
+            <span class="metric-val" id="metric-latency">—</span>
+            <span class="metric-sub" id="metric-latency-sub">Total execution</span>
+          </div>
+          <div class="metric-col">
+            <span class="metric-label">Tokens used</span>
+            <span class="metric-val" id="metric-tokens">—</span>
+            <span class="metric-sub" id="metric-tokens-sub">Perimeter & model</span>
+          </div>
+        </section>
+
+        <!-- Trace Table Card -->
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Trace</h2>
+              <div class="card-subtitle">Sequential defense-in-depth pipeline execution</div>
+            </div>
+            <span class="status-badge badge-idle" id="trace-stage-indicator">4 stages</span>
           </div>
 
-          <div class="detail-item">
-            <span class="detail-label">Final verdict</span>
-            <span class="detail-value" id="detail-verdict">—</span>
-          </div>
-        </div>
-
-        <!-- Collapsed Raw Log -->
-        <details class="raw-log-details" id="raw-log-details">
-          <summary>Raw log</summary>
-          <pre class="raw-log-content" id="raw-log-content">No events recorded. Run a simulation to stream raw telemetry packets.</pre>
-        </details>
-      </section>
-
-    </main>
-
-    <!-- TAB 2: REPORTS -->
-    <main class="reports-workspace tab-content" id="view-reports">
-      <div style="display: flex; align-items: flex-start; justify-content: space-between;">
-        <div>
-          <h1 class="run-title">Security Audit Reports</h1>
-          <div class="run-meta">Historical regression evaluations and OWASP LLM Top 10 compliance audits</div>
-        </div>
-        <button class="btn-secondary" id="btn-gen-report" onclick="generateNewReport()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-          Generate report
-        </button>
-      </div>
-
-      <!-- Summary metrics across reports -->
-      <div class="metrics-strip">
-        <div class="metric-col">
-          <span class="metric-label">Total audits</span>
-          <span class="metric-val" id="rep-kpi-total">—</span>
-          <span class="metric-sub">Artifacts saved</span>
-        </div>
-        <div class="metric-col">
-          <span class="metric-label">Mean robustness</span>
-          <span class="metric-val" id="rep-kpi-robustness">—</span>
-          <span class="metric-sub">Target > 90%</span>
-        </div>
-        <div class="metric-col">
-          <span class="metric-label">Mean ASR</span>
-          <span class="metric-val" id="rep-kpi-asr">—</span>
-          <span class="metric-sub">Target < 5%</span>
-        </div>
-        <div class="metric-col">
-          <span class="metric-label">Evaluated models</span>
-          <span class="metric-val" id="rep-kpi-models">—</span>
-          <span class="metric-sub">OpenAI, Claude, Azure</span>
-        </div>
-      </div>
-
-      <!-- Reports Table Card -->
-      <div class="card">
-        <div class="card-header">
-          <h2 class="card-title">Saved Audit Artifacts</h2>
-          <span class="card-subtitle" id="reports-count-label">Loading...</span>
-        </div>
-        <div style="overflow-x: auto;">
-          <table class="data-table">
+          <table class="trace-table">
             <thead>
               <tr>
-                <th>Artifact</th>
-                <th>Provider</th>
-                <th>Probes</th>
-                <th>Robustness</th>
-                <th>ASR</th>
-                <th>Risk rating</th>
-                <th>Generated</th>
-                <th style="text-align: right;">Action</th>
+                <th style="width: 170px;">Stage</th>
+                <th>Result</th>
+                <th style="width: 140px;">Timing</th>
+                <th style="width: 80px; text-align: right;">Duration</th>
               </tr>
             </thead>
-            <tbody id="reports-tbody">
-              <tr>
-                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading reports catalog...</td>
+            <tbody id="trace-tbody">
+              <tr class="trace-row" id="row-ingest">
+                <td class="stage-name">Attack received</td>
+                <td class="stage-result" id="res-ingest">Awaiting execution</td>
+                <td>
+                  <div class="timing-track">
+                    <div class="timing-bar" id="bar-ingest"></div>
+                  </div>
+                </td>
+                <td class="duration-val" id="dur-ingest">—</td>
+              </tr>
+              <tr class="trace-row" id="row-guardrail-in">
+                <td class="stage-name">Input guardrail</td>
+                <td class="stage-result" id="res-guardrail-in">Awaiting execution</td>
+                <td>
+                  <div class="timing-track">
+                    <div class="timing-bar" id="bar-guardrail-in"></div>
+                  </div>
+                </td>
+                <td class="duration-val" id="dur-guardrail-in">—</td>
+              </tr>
+              <tr class="trace-row" id="row-inference">
+                <td class="stage-name">Model call</td>
+                <td class="stage-result" id="res-inference">Awaiting execution</td>
+                <td>
+                  <div class="timing-track">
+                    <div class="timing-bar" id="bar-inference"></div>
+                  </div>
+                </td>
+                <td class="duration-val" id="dur-inference">—</td>
+              </tr>
+              <tr class="trace-row" id="row-guardrail-out">
+                <td class="stage-name">Output guardrail</td>
+                <td class="stage-result" id="res-guardrail-out">Awaiting execution</td>
+                <td>
+                  <div class="timing-track">
+                    <div class="timing-bar" id="bar-guardrail-out"></div>
+                  </div>
+                </td>
+                <td class="duration-val" id="dur-guardrail-out">—</td>
               </tr>
             </tbody>
           </table>
-        </div>
-      </div>
+        </section>
 
-      <!-- In-place Report Viewer -->
-      <div class="card" id="report-viewer-card" style="display: none;">
-        <div class="card-header">
+        <!-- Details Section Card -->
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Details</h2>
+              <div class="card-subtitle">Payload inspection and policy attribution</div>
+            </div>
+          </div>
+
+          <div class="details-grid">
+            <div class="detail-item prompt-display" id="detail-prompt">
+              // Select an attack vector and click "Run simulation" to view prompt payload.
+            </div>
+
+            <div class="detail-item">
+              <span class="detail-label">Rule triggered</span>
+              <span class="detail-value" id="detail-rule">—</span>
+            </div>
+
+            <div class="detail-item">
+              <span class="detail-label">Risk level</span>
+              <div id="detail-risk">
+                <span class="status-badge badge-idle">—</span>
+              </div>
+            </div>
+
+            <div class="detail-item">
+              <span class="detail-label">Mitigation layer</span>
+              <span class="detail-value" id="detail-layer">—</span>
+            </div>
+
+            <div class="detail-item">
+              <span class="detail-label">Final verdict</span>
+              <span class="detail-value" id="detail-verdict">—</span>
+            </div>
+
+            <div class="detail-item">
+              <span class="detail-label">Detection confidence</span>
+              <span class="detail-value tabular-nums" id="detail-confidence">—</span>
+            </div>
+
+            <div class="detail-item">
+              <span class="detail-label">Bypass probability</span>
+              <span class="detail-value tabular-nums" id="detail-bypass-prob">—</span>
+            </div>
+
+            <div class="detail-item">
+              <span class="detail-label">CVSS severity score</span>
+              <span class="detail-value tabular-nums" id="detail-cvss">—</span>
+            </div>
+
+            <div class="detail-item">
+              <span class="detail-label">Threat Classification</span>
+              <span class="detail-value" id="detail-taxonomy">—</span>
+            </div>
+          </div>
+
+          <!-- Collapsed Raw Log -->
+          <details class="raw-log-details" id="raw-log-details">
+            <summary>Raw log</summary>
+            <pre class="raw-log-content" id="raw-log-content">No events recorded. Run a simulation to stream raw telemetry packets.</pre>
+          </details>
+        </section>
+
+        <!-- Simulation Report Inline Viewer (hidden until report is ready) -->
+        <section class="card" id="sim-report-card" style="display: none;">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Simulation Report</h2>
+              <div class="card-subtitle" id="sim-report-subtitle">Auto-generated audit artifact</div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span class="status-badge badge-idle" id="sim-report-format">Markdown</span>
+              <button class="btn-secondary" style="height: 28px; font-size: 11px;" onclick="viewLastSimReport(true)">Open in new tab</button>
+              <button class="btn-secondary" style="height: 28px; font-size: 11px;" onclick="closeSimReport()">Close</button>
+            </div>
+          </div>
+          <div id="sim-report-body" class="report-markdown" style="padding: 20px; max-height: 600px; overflow-y: auto;">
+            <!-- Report rendered here as markdown HTML -->
+          </div>
+        </section>
+
+      </main>
+
+    </div>
+
+    <!-- TAB 2: REPORTS -->
+    <div class="tab-content" id="view-reports">
+      <main class="reports-workspace">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between;">
           <div>
-            <h2 class="card-title" id="report-view-title">Report Preview</h2>
-            <div class="card-subtitle" id="report-view-subtitle">Formatted audit findings</div>
+            <h1 class="run-title">Security Audit Reports</h1>
+            <div class="run-meta">Historical regression evaluations and security audit artifacts</div>
           </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-secondary" style="height: 28px; font-size: 11px;" onclick="closeReportViewer()">Close</button>
+          <button class="btn-secondary" id="btn-gen-report" onclick="generateNewReport()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Generate report
+          </button>
+        </div>
+
+        <!-- Summary metrics across reports -->
+        <div class="metrics-strip">
+          <div class="metric-col">
+            <span class="metric-label">Total audits</span>
+            <span class="metric-val" id="rep-kpi-total">—</span>
+            <span class="metric-sub">Artifacts saved</span>
+          </div>
+          <div class="metric-col">
+            <span class="metric-label">Mean robustness</span>
+            <span class="metric-val" id="rep-kpi-robustness">—</span>
+            <span class="metric-sub">Target > 90%</span>
+          </div>
+          <div class="metric-col">
+            <span class="metric-label">Mean ASR</span>
+            <span class="metric-val" id="rep-kpi-asr">—</span>
+            <span class="metric-sub">Target < 5%</span>
+          </div>
+          <div class="metric-col">
+            <span class="metric-label">Evaluated models</span>
+            <span class="metric-val" id="rep-kpi-models">—</span>
+            <span class="metric-sub">OpenAI, Claude, Azure</span>
           </div>
         </div>
-        <div style="padding: 20px;">
-          <pre id="report-view-content" style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.6; white-space: pre-wrap; color: var(--text-secondary); max-height: 540px; overflow-y: auto;"></pre>
+
+        <!-- Provider comparison mini-summary -->
+        <div class="card" id="reports-trend-card" style="margin-bottom: 16px;">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Provider Comparison</h2>
+              <div class="card-subtitle">Robustness scores by provider across all saved audits</div>
+            </div>
+          </div>
+          <div id="provider-chart" style="padding: 16px 20px;">
+            <!-- Populated dynamically with bar chart rows -->
+          </div>
         </div>
-      </div>
-    </main>
+
+        <!-- Reports Table Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Saved Audit Artifacts</h2>
+            <span class="card-subtitle" id="reports-count-label">Loading...</span>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Artifact</th>
+                  <th>Provider</th>
+                  <th>Probes</th>
+                  <th>Robustness</th>
+                  <th>ASR</th>
+                  <th>Risk rating</th>
+                  <th>Generated</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="reports-tbody">
+                <tr>
+                  <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading reports catalog...</td>
+                </tr>
+              </tbody>
+            </table>
+            <!-- Compatibility fallback anchor -->
+            <div id="reports-list" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- In-place Report Viewer -->
+        <div class="card" id="report-viewer-card" style="display: none;">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="report-view-title">Report Preview</h2>
+              <div class="card-subtitle" id="report-view-subtitle">Formatted audit findings</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-secondary" style="height: 28px; font-size: 11px;" id="btn-open-report-tab" onclick="openCurrentReportInNewTab()">Open in new tab</button>
+              <button class="btn-secondary" style="height: 28px; font-size: 11px;" onclick="closeReportViewer()">Close</button>
+            </div>
+          </div>
+          <div style="padding: 20px;">
+            <div id="report-view-content" class="report-markdown" style="font-size: 13px; line-height: 1.7; color: var(--text-secondary);">
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
 
     <!-- TAB 3: DOCS -->
-    <main class="docs-workspace tab-content" id="view-docs">
-      <!-- Docs Sidebar -->
-      <aside class="docs-sidebar" id="docs-sidebar">
-        <div style="font-size: 11px; font-weight: 500; color: var(--text-muted); padding: 4px 8px; margin-bottom: 4px;">Technical Specifications</div>
-        <div id="docs-nav-list" style="display: flex; flex-direction: column; gap: 2px;">
-          <!-- Loaded dynamically -->
-        </div>
-      </aside>
-
-      <!-- Docs Reading Area -->
-      <section class="docs-content">
-        <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
-          <div>
-            <h1 style="font-size: 18px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em;" id="doc-active-title">Architecture Specification</h1>
-            <div style="font-size: 12px; color: var(--text-muted);" id="doc-active-filename">ARCHITECTURE.md</div>
+    <div class="tab-content" id="view-docs">
+      <main class="docs-workspace">
+        <!-- Docs Sidebar -->
+        <aside class="docs-sidebar" id="docs-sidebar">
+          <div style="font-size: 11px; font-weight: 500; color: var(--text-muted); padding: 4px 8px; margin-bottom: 4px;">Technical Specifications</div>
+          <div id="docs-nav-list" style="display: flex; flex-direction: column; gap: 2px;">
+            <!-- Loaded dynamically -->
           </div>
-          <span class="status-badge badge-idle">Markdown</span>
-        </div>
-        <div class="doc-markdown" id="doc-markdown-body">
-          Select a specification from the sidebar to inspect technical architecture, guardrail heuristic specifications, and threat taxonomies.
-        </div>
-      </section>
-    </main>
+          <!-- Compatibility fallback anchor -->
+          <div id="docs-nav" style="display: none;"></div>
+        </aside>
+
+        <!-- Docs Reading Area -->
+        <section class="docs-content">
+          <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <div>
+              <h1 style="font-size: 18px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.01em;" id="doc-active-title">Architecture Specification</h1>
+              <div style="font-size: 12px; color: var(--text-muted);" id="doc-active-filename">ARCHITECTURE.md</div>
+            </div>
+            <span class="status-badge badge-idle">Markdown</span>
+          </div>
+          <div class="doc-markdown" id="doc-markdown-body">
+            Select a specification from the sidebar to inspect technical architecture, guardrail heuristic specifications, and threat taxonomies.
+          </div>
+        </section>
+      </main>
+    </div>
 
   </div>
 
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v=20261020_08"></script>
 </body>
 </html>

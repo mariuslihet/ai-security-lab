@@ -244,10 +244,36 @@ button:focus-visible {
 /* App container */
 .app-container {
   display: flex;
+  width: 100%;
   min-height: calc(100vh - 48px);
 }
 
-/* Left Sidebar (288px) */
+/* Tab Content Visibility Guarantee */
+.tab-content {
+  display: none !important;
+  width: 100%;
+}
+
+.tab-content.active {
+  display: flex !important;
+}
+
+#view-simulate.active {
+  display: flex !important;
+  flex-direction: row;
+}
+
+#view-reports.active {
+  display: flex !important;
+  flex-direction: column;
+}
+
+#view-docs.active {
+  display: flex !important;
+  flex-direction: row;
+}
+
+/* Left Sidebar (288px) in Simulate tab */
 .sidebar {
   width: 288px;
   min-width: 288px;
@@ -444,7 +470,7 @@ button:focus-visible {
   user-select: all;
 }
 
-/* Main workspace */
+/* Main simulate workspace */
 .main-workspace {
   flex: 1;
   padding: 24px 32px;
@@ -777,15 +803,6 @@ button:focus-visible {
 }
 
 /* Reports tab styles */
-.tab-content {
-  display: none;
-  width: 100%;
-}
-
-.tab-content.active {
-  display: flex;
-}
-
 .reports-workspace {
   flex: 1;
   padding: 24px 32px;
@@ -793,6 +810,7 @@ button:focus-visible {
   flex-direction: column;
   gap: 20px;
   overflow-y: auto;
+  width: 100%;
 }
 
 .btn-secondary {
@@ -846,6 +864,7 @@ button:focus-visible {
 .docs-workspace {
   flex: 1;
   display: flex;
+  width: 100%;
   height: calc(100vh - 48px);
 }
 
@@ -892,13 +911,13 @@ button:focus-visible {
   flex: 1;
   padding: 32px 48px;
   overflow-y: auto;
-  max-width: 900px;
 }
 
 .doc-markdown {
   font-size: 13px;
   line-height: 1.7;
   color: var(--text-secondary);
+  max-width: 860px;
 }
 
 .doc-markdown h1 {
@@ -976,7 +995,7 @@ button:focus-visible {
 
 /* Responsive adjustments */
 @media (max-width: 960px) {
-  .app-container {
+  #view-simulate.active {
     flex-direction: column;
   }
   .sidebar {
@@ -995,4 +1014,186 @@ button:focus-visible {
   .metric-col:nth-child(1), .metric-col:nth-child(2) {
     border-bottom: 1px solid var(--border);
   }
+  .docs-workspace {
+    flex-direction: column;
+  }
+  .docs-sidebar {
+    width: 100%;
+    min-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* ==========================================================================
+   Layer 4 additions — Batch suite, report viewer, provider chart, markdown
+   ========================================================================== */
+
+/* Batch probe log entries */
+@keyframes probe-entry-fade {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.probe-log-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  animation: probe-entry-fade 0.2s ease both;
+}
+
+.probe-log-entry:last-child {
+  border-bottom: none;
+}
+
+#batch-probe-log .probe-log-entry:hover {
+  background: var(--surface-subtle);
+  border-radius: 4px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+/* Simulation report card — left border accent to distinguish from other cards */
+.card#sim-report-card {
+  border-left: 2px solid var(--badge-green-text);
+}
+
+/* Provider comparison chart bar transition */
+#provider-chart div[style*="transition"] {
+  transition: width 0.5s ease;
+}
+
+/* Report markdown — mirrors doc-markdown with max-width relaxed */
+.report-markdown {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.report-markdown h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  margin-top: 8px;
+  letter-spacing: -0.02em;
+}
+
+.report-markdown h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 24px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.report-markdown h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.report-markdown p {
+  margin-bottom: 12px;
+}
+
+.report-markdown pre {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  overflow-x: auto;
+  margin: 14px 0;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.report-markdown code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  padding: 2px 4px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.report-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 12px;
+}
+
+.report-markdown th {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  font-weight: 600;
+  background: var(--surface-subtle);
+}
+
+.report-markdown td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.report-markdown hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+.report-markdown li {
+  margin-left: 18px;
+  margin-bottom: 6px;
+}
+
+/* Extended doc-markdown table border for full coverage */
+.doc-markdown hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+/* Status badge additional variants (explicit, additive) */
+.badge-blocked {
+  background: var(--badge-green-bg);
+  color: var(--badge-green-text);
+  border-color: var(--badge-green-border);
+}
+
+.badge-safe {
+  background: var(--badge-green-bg);
+  color: var(--badge-green-text);
+  border-color: var(--badge-green-border);
+}
+
+.badge-exposed {
+  background: var(--badge-red-bg);
+  color: var(--badge-red-text);
+  border-color: var(--badge-red-border);
+}
+
+.badge-warning {
+  background: var(--badge-amber-bg);
+  color: var(--badge-amber-text);
+  border-color: var(--badge-amber-border);
+}
+
+.badge-idle {
+  background: var(--badge-gray-bg);
+  color: var(--badge-gray-text);
+  border-color: var(--badge-gray-border);
 }

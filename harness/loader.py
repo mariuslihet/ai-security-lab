@@ -37,16 +37,31 @@ def load_test_cases_from_file(file_path: Union[str, Path]) -> List[SecurityTestC
     if not raw_data:
         return []
 
-    # Format can be either a top-level list or a dictionary with 'tests' key
-    if isinstance(raw_data, dict) and "tests" in raw_data:
-        raw_items = raw_data["tests"]
+    # Format can be either a top-level list or a dictionary with 'tests' or 'test_cases' key
+    if isinstance(raw_data, dict):
+        if "tests" in raw_data:
+            raw_items = raw_data["tests"]
+        elif "test_cases" in raw_data:
+            raw_items = raw_data["test_cases"]
+        else:
+            raise ValueError(f"Invalid test suite structure in {file_path}. Expected list or dict with 'tests' or 'test_cases' key.")
     elif isinstance(raw_data, list):
         raw_items = raw_data
     else:
-        raise ValueError(f"Invalid test suite structure in {file_path}. Expected list or dict with 'tests' key.")
+        raise ValueError(f"Invalid test suite structure in {file_path}. Expected list or dict with 'tests' or 'test_cases' key.")
 
     test_cases: List[SecurityTestCase] = []
     for item in raw_items:
+        if isinstance(item, dict) and "expected_behavior" in item:
+            eb = str(item["expected_behavior"]).lower()
+            if "block" in eb:
+                item["expected_behavior"] = "block"
+            elif "refuse" in eb:
+                item["expected_behavior"] = "refuse"
+            elif "mask" in eb:
+                item["expected_behavior"] = "mask"
+            else:
+                item["expected_behavior"] = "block"
         test_case = SecurityTestCase.model_validate(item)
         test_cases.append(test_case)
 

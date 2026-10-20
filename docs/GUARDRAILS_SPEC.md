@@ -1,7 +1,7 @@
 # Guardrails Technical Specification
 
 ## 1. Overview
-This specification details the detection algorithms, validation routines, and scoring logic implemented across the `guardrails` subsystem of `ai-security-lab`.
+This specification details the detection algorithms, validation routines, scoring logic, and enriched telemetry attributes implemented across the `guardrails` subsystem of `ai-security-lab`.
 
 ---
 
@@ -14,13 +14,19 @@ class GuardrailResult(BaseModel):
     guardrail_name: str
     action: GuardrailAction       # ALLOW, FLAG, BLOCK
     risk_level: RiskLevel         # NONE, LOW, MEDIUM, HIGH, CRITICAL
-    confidence: float             # 0.0 to 1.0
+    confidence: float             # 0.0 to 1.0 (Detection Confidence)
     violations: List[GuardrailViolation]
     metadata: Dict[str, Any]
 ```
 
 ### Risk Level Hierarchy:
 `NONE` (0) < `LOW` (1) < `MEDIUM` (2) < `HIGH` (3) < `CRITICAL` (4)
+
+### Enriched Guardrail Telemetry & Risk Signals:
+When guardrail evaluations are ingested into simulation events and forensic audit generators:
+- **Detection Confidence (`detection_confidence`)**: Estimated statistical certainty (0.0 to 1.0, e.g. 0.95 for deterministic regex matches).
+- **Estimated Bypass Probability (`bypass_probability`)**: Probability that the adversarial payload would evade downstream model controls if perimeter defense were inactive (0.0 to 1.0).
+- **CVSS v3.1 Severity Score (`cvss_score`)**: Quantitative exploitability rating (0.0 to 10.0) mapped from attributed threat techniques.
 
 ---
 
@@ -29,7 +35,7 @@ class GuardrailResult(BaseModel):
 ### 3.1 Prompt Injection Guardrail (`guardrails/input/prompt_injection.py`)
 - **Direct Overrides**: Pattern matching against terms matching `\bignore\s+(all\s+)?(previous|prior|above)\s+instructions\b`.
 - **Role Hijacking**: Detects terms matching `\byou\s+are\s+now\s+(unrestricted|jailbroken|in developer mode|dan)\b`.
-- **Delimiter Hijacking**: Analyzes structural tokens including `<system>`, `[system]`, and `### instruction`.
+- **Delimiter Hijacking**: Analyzes structural tokens including `<system>`, `[system]`, `### instruction`, markdown fences, and JSON role attributes.
 - **Base64 Payload De-obfuscation**:
   - Regex: `(?:[A-Za-z0-9+/]{4}){6,}(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?`
   - Decodes matching strings dynamically and submits the decoded text to all active detection rules.

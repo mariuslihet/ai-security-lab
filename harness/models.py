@@ -12,12 +12,12 @@ from guardrails.base import GuardrailResult, RiskLevel
 
 
 class SecurityCategory(str, Enum):
-    """OWASP Top 10 for LLMs and core AI security threat taxonomies."""
-    PROMPT_INJECTION = "prompt_injection"          # LLM01: Prompt Injection
-    JAILBREAK = "jailbreak"                        # LLM01 / Adversarial Alignment Bypass
-    PII_LEAKAGE = "pii_leakage"                    # LLM06: Sensitive Information Disclosure
-    SYSTEM_PROMPT_LEAK = "system_prompt_leak"      # LLM07: System Prompt & Data Exfiltration
-    INSECURE_OUTPUT = "insecure_output"            # LLM02: Insecure Output Handling
+    """Core AI security threat categories."""
+    PROMPT_INJECTION = "prompt_injection"          # Direct Prompt Injection & Overrides
+    JAILBREAK = "jailbreak"                        # Adversarial Alignment Bypass & Roleplay
+    PII_LEAKAGE = "pii_leakage"                    # Sensitive Information & Credential Disclosure
+    SYSTEM_PROMPT_LEAK = "system_prompt_leak"      # System Prompt & Canary Data Exfiltration
+    INSECURE_OUTPUT = "insecure_output"            # Insecure Output Handling
 
 
 class ExpectedBehavior(str, Enum):

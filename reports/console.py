@@ -55,7 +55,7 @@ class ConsoleReporter:
         self.console.print(Panel(header, border_style="cyan"))
 
         # Category Table
-        cat_table = Table(title="OWASP Category Breakdown", border_style="dim")
+        cat_table = Table(title="Threat Category Breakdown", border_style="dim")
         cat_table.add_column("Category", style="cyan")
         cat_table.add_column("Probes", justify="right")
         cat_table.add_column("Bypassed", justify="right")

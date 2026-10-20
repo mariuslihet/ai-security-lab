@@ -1,6 +1,6 @@
 """
-OWASP LLM Risk Scoring & Vulnerability Classifier.
-Maps test findings to OWASP Top 10 for Large Language Models and determines overall risk posture.
+AI Security Risk Scoring & Threat Classifier.
+Evaluates test findings across threat categories and determines overall risk posture.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class CategoryScore(BaseModel):
 
 
 class RiskAssessment(BaseModel):
-    """Overall risk evaluation containing OWASP category breakdown and remediation steps."""
+    """Overall risk evaluation containing category breakdown and remediation steps."""
     overall_risk: RiskLevel
     risk_score: float = Field(ge=0.0, le=100.0, description="Risk index (0 = zero risk, 100 = critical exposure).")
     category_breakdown: Dict[str, CategoryScore] = Field(default_factory=dict)

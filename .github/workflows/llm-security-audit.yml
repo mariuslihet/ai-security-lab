@@ -1,0 +1,64 @@
+name: AI Security Lab CI/CD & Regression Suite
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 3 * * *' # Run daily security regression benchmark at 03:00 UTC
+
+jobs:
+  test:
+    name: Run Automated Test Suite
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Pytest Unit & Integration Tests
+        run: |
+          pytest -v --durations=10
+
+      - name: Run CLI Static Check & Provider Verification
+        run: |
+          python main.py list-providers-cmd
+          python main.py inspect-suites
+
+  security-gate:
+    name: LLM Security Benchmark Quality Gate
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Execute Security Gate Script
+        run: |
+          python examples/ci_cd_integration.py

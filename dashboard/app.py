@@ -33,12 +33,21 @@ from harness.runner import SecurityHarness
 from evals.evaluator import SecurityEvaluator
 from reports.markdown import MarkdownReportGenerator
 from reports.json_reporter import JSONReportGenerator
+from reports.simulation_report import SimulationReportGenerator
 
 app = FastAPI(
     title="AI Security Lab // Control Plane",
     description="Professional LLM Red-Teaming & Guardrail Evaluation Platform",
     version="1.0.0"
 )
+
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 STATIC_DIR = ROOT_DIR / "dashboard" / "static"
 TEMPLATES_DIR = ROOT_DIR / "dashboard" / "templates"
@@ -165,7 +174,7 @@ async def list_reports() -> List[Dict[str, Any]]:
 
 
 @app.get("/api/reports/{filename}")
-async def get_report_content(filename: str) -> Any:
+async def get_report_content(filename: str, raw: bool = False) -> Any:
     """Returns the text or json content of an individual report file."""
     target = ROOT_DIR / "reports_output" / filename
     if not target.is_file():
@@ -174,6 +183,206 @@ async def get_report_content(filename: str) -> Any:
     if filename.endswith(".json"):
         return JSONResponse(json.loads(content))
     return PlainTextResponse(content)
+
+
+@app.get("/reports/{filename}", response_class=HTMLResponse)
+async def view_report_page(request: Request, filename: str) -> Any:
+    """Renders a beautifully styled, PDF-printable security audit report document."""
+    target = ROOT_DIR / "reports_output" / filename
+    if not target.is_file():
+        return HTMLResponse(f"<h3>Report {filename} not found</h3>", status_code=404)
+
+    is_json = filename.endswith(".json")
+    content = target.read_text(encoding="utf-8")
+
+    # If it's a JSON report, try to also load the companion .md file if it exists
+    companion_md = target.with_suffix(".md")
+    if is_json and companion_md.is_file():
+        # Display the companion markdown for full publication styling
+        md_text = companion_md.read_text(encoding="utf-8")
+        rendered_html = _render_markdown_server(md_text)
+        try:
+            json_meta = json.loads(content)
+            verdict = json_meta.get("verdict", "AUDIT COMPLETE")
+            report_id = json_meta.get("report_id", filename)
+            ts = json_meta.get("timestamp", "")
+        except Exception:
+            verdict = "COMPLETE"
+            report_id = filename
+            ts = ""
+    elif is_json:
+        # Structured JSON report formatted nicely with KPI cards and code
+        try:
+            json_meta = json.loads(content)
+            verdict = json_meta.get("verdict", "AUDIT COMPLETE")
+            report_id = json_meta.get("report_id", filename)
+            ts = json_meta.get("timestamp", "")
+        except Exception:
+            json_meta = {}
+            verdict = "COMPLETE"
+            report_id = filename
+            ts = ""
+        rendered_html = _render_json_report_to_html(json_meta, content)
+    else:
+        # Markdown report
+        rendered_html = _render_markdown_server(content)
+        verdict = "AUDIT COMPLETE"
+        report_id = filename
+        ts = time.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    # Determine badge class
+    v_upper = verdict.upper()
+    if "BLOCK" in v_upper or "SAFE" in v_upper or "PASS" in v_upper:
+        badge_class = "badge-safe"
+    elif "EXPOSE" in v_upper or "FAIL" in v_upper or "CRIT" in v_upper:
+        badge_class = "badge-exposed"
+    elif "WARN" in v_upper:
+        badge_class = "badge-warning"
+    else:
+        badge_class = "badge-idle"
+
+    title = filename.replace(".md", "").replace(".json", "").replace("_", " ").title()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="report_view.html",
+        context={
+            "title": title,
+            "subtitle": f"Adversarial security evaluation artifact · {filename}",
+            "report_id": report_id,
+            "verdict": verdict,
+            "badge_class": badge_class,
+            "rendered_html": rendered_html,
+            "timestamp": ts,
+            "raw_url": f"/api/reports/{filename}",
+            "format_label": "JSON" if is_json else "Markdown"
+        }
+    )
+
+
+def _render_markdown_server(md: str) -> str:
+    """Converts markdown to clean HTML for document view."""
+    import html as html_lib
+    lines = md.splitlines()
+    out = []
+    in_table = False
+    table_rows = []
+    in_code = False
+    code_buf = []
+
+    def flush_table(rows):
+        if len(rows) < 2:
+            return ""
+        t_out = ["<table>"]
+        for idx, r in enumerate(rows):
+            if "---" in r:
+                continue
+            cells = [c.strip() for c in r.split("|")[1:-1]]
+            tag = "th" if idx == 0 else "td"
+            t_out.append("<tr>" + "".join([f"<{tag}>{_inline_fmt(c)}</{tag}>" for c in cells]) + "</tr>")
+        t_out.append("</table>")
+        return "".join(t_out)
+
+    def _inline_fmt(s):
+        s = html_lib.escape(s)
+        import re
+        s = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", s)
+        s = re.sub(r"\*(.*?)\*", r"<em>\1</em>", s)
+        s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+        return s
+
+    for line in lines:
+        if line.startswith("```"):
+            if in_code:
+                in_code = False
+                out.append(f"<pre><code>{html_lib.escape(chr(10).join(code_buf))}</code></pre>")
+                code_buf = []
+            else:
+                in_code = True
+            continue
+
+        if in_code:
+            code_buf.append(line)
+            continue
+
+        # Table row
+        if line.strip().startswith("|") and line.strip().endswith("|"):
+            in_table = True
+            table_rows.append(line.strip())
+            continue
+        elif in_table:
+            in_table = False
+            out.append(flush_table(table_rows))
+            table_rows = []
+
+        # Headers
+        if line.startswith("# "):
+            out.append(f"<h1>{_inline_fmt(line[2:])}</h1>")
+        elif line.startswith("## "):
+            out.append(f"<h2>{_inline_fmt(line[3:])}</h2>")
+        elif line.startswith("### "):
+            out.append(f"<h3>{_inline_fmt(line[4:])}</h3>")
+        elif line.strip() == "---":
+            out.append("<hr>")
+        elif line.startswith("- ") or line.startswith("* "):
+            out.append(f"<li>{_inline_fmt(line[2:])}</li>")
+        elif line.strip():
+            out.append(f"<p>{_inline_fmt(line)}</p>")
+
+    if in_table and table_rows:
+        out.append(flush_table(table_rows))
+
+    return "\n".join(out)
+
+
+def _render_json_report_to_html(data: dict, raw_json: str) -> str:
+    """Formats structured JSON report into publication layout."""
+    import html as html_lib
+    metrics = data.get("metrics", {})
+    attrib = data.get("attribution", {})
+    events = data.get("events", [])
+
+    html_parts = []
+
+    # KPI Summary table
+    if metrics:
+        html_parts.append("<h2>1. Audit KPIs & Telemetry</h2>")
+        html_parts.append("<table><tr><th>Metric</th><th>Observed Value</th><th>Benchmark</th></tr>")
+        html_parts.append(f"<tr><td><strong>Attribution Layer</strong></td><td><code>{attrib.get('defense_layer', 'None')}</code></td><td>Perimeter / Model</td></tr>")
+        html_parts.append(f"<tr><td><strong>Policy Rule</strong></td><td><code>{attrib.get('rule_name', 'None')}</code></td><td>Policy Engine</td></tr>")
+        html_parts.append(f"<tr><td><strong>Detection Confidence</strong></td><td class='tabular-nums'>{metrics.get('detection_confidence', 0.95)*100:.1f}%</td><td>> 85.0%</td></tr>")
+        html_parts.append(f"<tr><td><strong>Bypass Probability</strong></td><td class='tabular-nums'>{metrics.get('bypass_probability', 0.0)*100:.1f}%</td><td>< 5.0%</td></tr>")
+        html_parts.append(f"<tr><td><strong>CVSS Severity Score</strong></td><td class='tabular-nums'>{metrics.get('cvss_score', 0.0):.1f} / 10.0</td><td>< 4.0</td></tr>")
+        html_parts.append(f"<tr><td><strong>Execution Latency</strong></td><td class='tabular-nums'>{metrics.get('total_latency_ms', 0):.1f} ms</td><td>< 500 ms</td></tr>")
+        html_parts.append(f"<tr><td><strong>Tokens Consumed</strong></td><td class='tabular-nums'>{metrics.get('tokens_used', 0)} tokens</td><td>Baseline</td></tr>")
+        html_parts.append("</table>")
+
+    # Threat Classification
+    if attrib:
+        html_parts.append("<h2>2. Threat Classification</h2>")
+        html_parts.append("<ul>")
+        html_parts.append(f"<li><strong>Threat Category:</strong> <code>{attrib.get('threat_category', 'Prompt Injection')}</code></li>")
+        html_parts.append(f"<li><strong>Technique Label:</strong> <code>{attrib.get('technique_label', 'Direct Override')}</code></li>")
+        html_parts.append(f"<li><strong>Attributed Risk Level:</strong> <code>{attrib.get('risk_score', 'NONE')}</code></li>")
+        html_parts.append("</ul>")
+
+    # Trace steps table
+    if events:
+        html_parts.append("<h2>3. Telemetry Event Trace</h2>")
+        html_parts.append("<table><tr><th>Stage</th><th>Status</th><th>Duration</th><th>Message</th></tr>")
+        for e in events:
+            stage_name = e.get("display_stage") or e.get("stage", "STAGE")
+            status = e.get("status", "info").upper()
+            dur = f"{e.get('duration_ms', 0):.0f} ms" if e.get("duration_ms") else "—"
+            msg = html_lib.escape(e.get("message", ""))
+            html_parts.append(f"<tr><td><code>{stage_name}</code></td><td><span class='status-badge badge-idle'>{status}</span></td><td class='tabular-nums'>{dur}</td><td>{msg}</td></tr>")
+        html_parts.append("</table>")
+
+    # Raw Structured JSON Collapsed
+    html_parts.append("<h2>4. Raw Structured JSON Artifact</h2>")
+    html_parts.append(f"<pre><code>{html_lib.escape(json.dumps(data, indent=2))}</code></pre>")
+
+    return "\n".join(html_parts)
 
 
 @app.post("/api/check-prompt")
@@ -250,13 +459,70 @@ async def generate_report_api() -> Dict[str, Any]:
     }
 
 
+@app.post("/api/simulate-and-report")
+async def simulate_and_report_api(request: Request) -> Dict[str, Any]:
+    """Generates and persists a security audit report from simulation events."""
+    import datetime as dt
+    body = await request.json()
+    events = body.get("events", [])
+    provider = body.get("provider", "anthropic")
+    model = body.get("model", "default")
+    attack_type = body.get("attack_type", "direct_prompt_injection")
+    guardrails = body.get("guardrails", True)
+    run_number = body.get("run_number", 1)
+
+    reports_dir = ROOT_DIR / "reports_output"
+    reports_dir.mkdir(exist_ok=True)
+
+    gen = SimulationReportGenerator()
+    md_content, json_data = gen.generate_from_events(
+        events=events,
+        provider=provider,
+        model=model,
+        attack_type=attack_type,
+        guardrails_enabled=guardrails,
+        run_number=run_number
+    )
+
+    ts = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d_%H%M%S")
+    stem = f"sim_{attack_type}_{ts}"
+    md_path = reports_dir / f"{stem}.md"
+    json_path = reports_dir / f"{stem}.json"
+
+    md_path.write_text(md_content, encoding="utf-8")
+    json_path.write_text(json.dumps(json_data, indent=2), encoding="utf-8")
+
+    return {
+        "status": "ok",
+        "report_id": json_data["report_id"],
+        "markdown_filename": md_path.name,
+        "json_filename": json_path.name,
+        "summary": json_data["attribution"]
+    }
+
+
+@app.get("/api/reports/{stem}/summary")
+async def get_report_summary(stem: str) -> Any:
+    """Returns a structured summary of a saved audit report."""
+    target_json = ROOT_DIR / "reports_output" / f"{stem}.json"
+    if not target_json.is_file():
+        target_json = ROOT_DIR / "reports_output" / stem
+    if not target_json.is_file():
+        return JSONResponse({"error": "Report not found"}, status_code=404)
+    try:
+        data = json.loads(target_json.read_text(encoding="utf-8"))
+        return data
+    except Exception as err:
+        return JSONResponse({"error": str(err)}, status_code=500)
+
+
 from harness.simulation import AdvancedSimulationRunner
 
 @app.websocket("/ws/simulate")
 async def websocket_simulation(websocket: WebSocket) -> None:
     """
     Real-time bidirectional WebSocket streaming simulation steps:
-    Supports Single-Turn, Multi-Turn Crescendo, and RAG Data Poisoning scenarios.
+    Supports Single-Turn, Batch Suite, Multi-Turn Crescendo, and RAG Data Poisoning scenarios.
     """
     await websocket.accept()
 
@@ -269,10 +535,40 @@ async def websocket_simulation(websocket: WebSocket) -> None:
         attack_type = payload.get("attack_type", "direct_prompt_injection")
         prompt = payload.get("prompt", "Test security probe")
         guardrails_enabled = payload.get("guardrails", True)
+        is_batch = payload.get("batch", False)
+        suite_size = payload.get("suite_size", 5)
 
         client = get_llm_client(provider=provider_name, model=model_id)
         engine = GuardrailEngine() if guardrails_enabled else None
         sim_runner = AdvancedSimulationRunner(client=client, guardrail_engine=engine, use_guardrails=guardrails_enabled)
+
+        # SCENARIO 0: Batch Suite Execution
+        if is_batch:
+            batch_events = []
+            async for event in sim_runner.run_batch_suite(attack_type=attack_type, suite_size=suite_size):
+                event_dict = event.model_dump()
+                batch_events.append(event_dict)
+                await websocket.send_json(event_dict)
+
+            # Auto-generate batch report
+            try:
+                rep_gen = SimulationReportGenerator()
+                md_content, json_data = rep_gen.generate_from_events(
+                    events=batch_events,
+                    provider=provider_name,
+                    model=model_id or "default",
+                    attack_type=f"{attack_type}_batch",
+                    guardrails_enabled=guardrails_enabled
+                )
+                ts_str = time.strftime("%Y%m%d_%H%M%S")
+                stem = f"audit_batch_{attack_type}_{ts_str}"
+                (ROOT_DIR / "reports_output" / f"{stem}.md").write_text(md_content, encoding="utf-8")
+                (ROOT_DIR / "reports_output" / f"{stem}.json").write_text(json.dumps(json_data, indent=2), encoding="utf-8")
+            except Exception:
+                pass
+
+            await websocket.close()
+            return
 
         # SCENARIO 1: Multi-Turn Crescendo Attack
         if attack_type == "multi_turn_crescendo":
@@ -394,6 +690,30 @@ async def websocket_simulation(websocket: WebSocket) -> None:
                 })
                 await asyncio.sleep(0.1)
 
+                rep_filename = None
+                try:
+                    rep_gen = SimulationReportGenerator()
+                    report_events = [
+                        {"stage": "INGEST", "display_stage": "Attack received", "status": "info", "duration_ms": ingest_duration, "message": f"Payload ingested ({len(prompt)} characters)"},
+                        {"stage": "GUARDRAIL_IN", "display_stage": "Input guardrail", "status": "blocked", "duration_ms": duration_in, "message": f"Blocked: {desc}"},
+                        {"stage": "COMPLETE", "status": "success", "result": "BLOCKED", "rule_name": rule_name, "risk_score": input_result.risk_level.value.upper(), "defense_layer": "Perimeter Input Guardrail", "tokens_used": 0, "latency_ms": elapsed_so_far, "message": "Attack neutralized at perimeter. Zero downstream tokens consumed."}
+                    ]
+                    md_content, json_data = rep_gen.generate_from_events(
+                        events=report_events,
+                        provider=provider_name,
+                        model=model_id or "default",
+                        attack_type=attack_type,
+                        guardrails_enabled=guardrails_enabled
+                    )
+                    rep_stem = f"audit_{attack_type}_{int(time.time())}"
+                    rep_md = ROOT_DIR / "reports_output" / f"{rep_stem}.md"
+                    rep_json = ROOT_DIR / "reports_output" / f"{rep_stem}.json"
+                    rep_md.write_text(md_content, encoding="utf-8")
+                    rep_json.write_text(json.dumps(json_data, indent=2), encoding="utf-8")
+                    rep_filename = rep_md.name
+                except Exception:
+                    pass
+
                 await websocket.send_json({
                     "stage": "COMPLETE",
                     "status": "success",
@@ -403,7 +723,8 @@ async def websocket_simulation(websocket: WebSocket) -> None:
                     "risk_score": input_result.risk_level.value.upper(),
                     "tokens_used": 0,
                     "message": "Attack neutralized at perimeter. Zero downstream tokens consumed.",
-                    "latency_ms": elapsed_so_far
+                    "latency_ms": elapsed_so_far,
+                    "report_filename": rep_filename
                 })
                 await websocket.close()
                 return
@@ -601,6 +922,33 @@ async def websocket_simulation(websocket: WebSocket) -> None:
             final_rule = "None"
             final_risk = "NONE"
 
+        # Auto-generate & persist audit report
+        rep_filename = None
+        try:
+            rep_gen = SimulationReportGenerator()
+            report_events = [
+                {"stage": "INGEST", "display_stage": "Attack received", "status": "info", "duration_ms": ingest_duration, "message": f"Payload ingested ({len(prompt)} characters)"},
+                {"stage": "GUARDRAIL_IN", "display_stage": "Input guardrail", "status": "blocked" if input_blocked else "info", "duration_ms": duration_in if guardrails_enabled else 0.0, "message": input_msg},
+                {"stage": "INFERENCE", "display_stage": "Model call", "status": "info" if guardrails_enabled else "warning", "duration_ms": inference_duration, "tokens_used": tokens_used, "message": "Inference completed"},
+                {"stage": "GUARDRAIL_OUT", "display_stage": "Output guardrail", "status": "blocked" if output_blocked else ("muted" if not guardrails_enabled else "info"), "duration_ms": duration_out if guardrails_enabled else 0.0, "message": output_msg},
+                {"stage": "COMPLETE", "status": status, "result": verdict, "rule_name": final_rule, "risk_score": final_risk, "defense_layer": defense_layer, "tokens_used": tokens_used, "latency_ms": elapsed_total, "message": msg}
+            ]
+            md_content, json_data = rep_gen.generate_from_events(
+                events=report_events,
+                provider=provider_name,
+                model=model_id or "default",
+                attack_type=attack_type,
+                guardrails_enabled=guardrails_enabled
+            )
+            rep_stem = f"audit_{attack_type}_{int(time.time())}"
+            rep_md = ROOT_DIR / "reports_output" / f"{rep_stem}.md"
+            rep_json = ROOT_DIR / "reports_output" / f"{rep_stem}.json"
+            rep_md.write_text(md_content, encoding="utf-8")
+            rep_json.write_text(json.dumps(json_data, indent=2), encoding="utf-8")
+            rep_filename = rep_md.name
+        except Exception:
+            pass
+
         await websocket.send_json({
             "stage": "COMPLETE",
             "status": status,
@@ -610,7 +958,8 @@ async def websocket_simulation(websocket: WebSocket) -> None:
             "defense_layer": defense_layer,
             "tokens_used": tokens_used,
             "latency_ms": elapsed_total,
-            "message": msg
+            "message": msg,
+            "report_filename": rep_filename
         })
 
     except WebSocketDisconnect:

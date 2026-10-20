@@ -18,7 +18,7 @@ keywords = [
     "jailbreak",
     "red-teaming",
     "guardrails",
-    "owasp-llm-top-10"
+    "adversarial-testing"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
