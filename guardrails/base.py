@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 class GuardrailAction(str, Enum):
     """Action dictated by a guardrail evaluation."""
+
     ALLOW = "allow"
     FLAG = "flag"
     BLOCK = "block"
@@ -19,6 +20,7 @@ class GuardrailAction(str, Enum):
 
 class RiskLevel(str, Enum):
     """Categorical risk severity assessment."""
+
     NONE = "none"
     LOW = "low"
     MEDIUM = "medium"
@@ -28,6 +30,7 @@ class RiskLevel(str, Enum):
 
 class GuardrailViolation(BaseModel):
     """Specific policy or security boundary violation detail."""
+
     rule_name: str
     description: str
     snippet: Optional[str] = None
@@ -36,10 +39,16 @@ class GuardrailViolation(BaseModel):
 
 class GuardrailResult(BaseModel):
     """Normalized outcome produced by input or output guardrail inspection."""
+
     guardrail_name: str
     action: GuardrailAction = GuardrailAction.ALLOW
     risk_level: RiskLevel = RiskLevel.NONE
-    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    confidence: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Uncalibrated heuristic; no probability is claimed.",
+    )
     violations: List[GuardrailViolation] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
@@ -60,6 +69,8 @@ class BaseGuardrail(abc.ABC):
         self.enabled = enabled
 
     @abc.abstractmethod
-    def evaluate(self, text: str, context: Optional[Dict[str, Any]] = None) -> GuardrailResult:
+    def evaluate(
+        self, text: str, context: Optional[Dict[str, Any]] = None
+    ) -> GuardrailResult:
         """Evaluates given text against safety policies and returns GuardrailResult."""
         raise NotImplementedError

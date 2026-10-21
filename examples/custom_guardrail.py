@@ -11,7 +11,13 @@ from typing import Any, Dict, Optional
 # Add repository root to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 
-from guardrails.base import BaseGuardrail, GuardrailAction, GuardrailResult, GuardrailViolation, RiskLevel
+from guardrails.base import (
+    BaseGuardrail,
+    GuardrailAction,
+    GuardrailResult,
+    GuardrailViolation,
+    RiskLevel,
+)
 from guardrails.engine import GuardrailEngine
 
 
@@ -22,16 +28,18 @@ class SSRFProtectionGuardrail(BaseGuardrail):
     """
 
     METADATA_IPS = [
-        r"\b169\.254\.169\.254\b",            # AWS / Azure / GCP Instance Metadata Service
-        r"\b127\.0\.0\.1\b|\blocalhost\b",     # Loopback interface
+        r"\b169\.254\.169\.254\b",  # AWS / Azure / GCP Instance Metadata Service
+        r"\b127\.0\.0\.1\b|\blocalhost\b",  # Loopback interface
         r"\b10\.\d{1,3}\.\d{1,3}\.\d{1,3}\b",  # Private Class A
-        r"\b192\.168\.\d{1,3}\.\d{1,3}\b",    # Private Class C
+        r"\b192\.168\.\d{1,3}\.\d{1,3}\b",  # Private Class C
     ]
 
     def __init__(self, name: str = "SSRFProtection") -> None:
         super().__init__(name=name)
 
-    def evaluate(self, text: str, context: Optional[Dict[str, Any]] = None) -> GuardrailResult:
+    def evaluate(
+        self, text: str, context: Optional[Dict[str, Any]] = None
+    ) -> GuardrailResult:
         violations = []
         for pattern in self.METADATA_IPS:
             match = re.search(pattern, text)
@@ -41,7 +49,7 @@ class SSRFProtectionGuardrail(BaseGuardrail):
                         rule_name="SSRF:PrivateNetworkProbe",
                         description="Forbidden loopback or cloud metadata endpoint referenced.",
                         snippet=match.group(0),
-                        severity=RiskLevel.CRITICAL
+                        severity=RiskLevel.CRITICAL,
                     )
                 )
 
@@ -50,13 +58,13 @@ class SSRFProtectionGuardrail(BaseGuardrail):
                 guardrail_name=self.name,
                 action=GuardrailAction.BLOCK,
                 risk_level=RiskLevel.CRITICAL,
-                violations=violations
+                violations=violations,
             )
 
         return GuardrailResult(
             guardrail_name=self.name,
             action=GuardrailAction.ALLOW,
-            risk_level=RiskLevel.NONE
+            risk_level=RiskLevel.NONE,
         )
 
 

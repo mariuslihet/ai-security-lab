@@ -9,7 +9,7 @@ from pathlib import Path
 # Add repository root to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 
-from core.factory import get_llm_client
+from core.demo_client import DemoLLMClient
 from guardrails.engine import GuardrailEngine
 from harness.loader import load_test_cases_from_file
 from harness.runner import SecurityHarness
@@ -22,8 +22,8 @@ def main() -> None:
     print("Initializing AI Security Lab Quickstart...")
 
     # 1. Resolve Provider Client (supports openai, anthropic, azure, bedrock)
-    # If API keys are not in environment, resilient diagnostic fallback operates automatically.
-    client = get_llm_client(provider="openai", model="gpt-4o-mini")
+    # Explicit offline demo: never read API keys or make provider calls.
+    client = DemoLLMClient(provider="openai", model_name="balanced")
     print(f"Provider: {client.provider_name} (Configured: {client.is_configured()})")
 
     # 2. Configure Defense Pipeline
@@ -36,9 +36,7 @@ def main() -> None:
 
     # 4. Execute Benchmark Harness
     harness = SecurityHarness(
-        llm_client=client,
-        guardrail_engine=guardrails,
-        use_guardrails=True
+        llm_client=client, guardrail_engine=guardrails, use_guardrails=True
     )
     results = harness.run_suite(test_cases)
 
@@ -48,7 +46,7 @@ def main() -> None:
         results=results,
         provider=client.provider_name,
         model=client.model_name,
-        guardrails_enabled=True
+        guardrails_enabled=True,
     )
 
     # 6. Print Console Dashboard

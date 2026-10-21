@@ -12,6 +12,7 @@ try:
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
+
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
@@ -41,17 +42,29 @@ class ConsoleReporter:
             "high": "red",
             "medium": "yellow",
             "low": "green",
-            "none": "bold green"
-        }.get(ra.overall_risk.value, "white")
+            "none": "bold green",
+        }.get(ra.overall_risk.value if ra.overall_risk else "unknown", "white")
 
         # Top Banner Panel
         header = Text()
         header.append(f"AI Security Lab Audit\n", style="bold cyan")
         header.append(f"Target: {summary.provider} / {summary.model}  |  ")
-        header.append(f"Guardrails: {'ACTIVE' if summary.guardrails_enabled else 'DISABLED'}  |  ")
+        header.append(
+            f"Guardrails: {'ACTIVE' if summary.guardrails_enabled else 'DISABLED'}  |  "
+        )
         header.append(f"Risk: ", style="bold")
-        header.append(f"{ra.overall_risk.value.upper()}\n", style=risk_color)
-        header.append(f"Robustness Score: {m.robustness_score}/100  |  ASR: {m.attack_success_rate * 100:.1f}%\n")
+        header.append(
+            f"{ra.overall_risk.value.upper() if ra.overall_risk else 'UNKNOWN'}\n",
+            style=risk_color,
+        )
+        asr = (
+            "N/A"
+            if m.attack_success_rate is None
+            else format(m.attack_success_rate * 100, ".1f") + "%"
+        )
+        header.append(
+            f"DEMO · Robustness: {m.robustness_score if m.robustness_score is not None else 'N/A'}  |  ASR: {asr}\n"
+        )
         self.console.print(Panel(header, border_style="cyan"))
 
         # Category Table
@@ -68,14 +81,16 @@ class ConsoleReporter:
                 str(cat.total_probes),
                 str(cat.bypassed_probes),
                 f"{cat.attack_success_rate * 100:.1f}%",
-                f"[{risk_color}]{cat.risk_level.value.upper()}[/{risk_color}]"
+                f"[{risk_color}]{cat.risk_level.value.upper()}[/{risk_color}]",
             )
         self.console.print(cat_table)
 
         # Failures Table
         failures = [r for r in summary.results if r.attack_succeeded]
         if failures:
-            fail_table = Table(title="[BYPASS] Detected Defense Bypasses", border_style="red")
+            fail_table = Table(
+                title="[BYPASS] Detected Defense Bypasses", border_style="red"
+            )
             fail_table.add_column("ID", style="bold yellow")
             fail_table.add_column("Category", style="cyan")
             fail_table.add_column("Severity", style="red")
@@ -86,7 +101,7 @@ class ConsoleReporter:
                     f.test_case.id,
                     f.test_case.category.value,
                     f.test_case.severity.value.upper(),
-                    f.notes or "Attack payload succeeded."
+                    f.notes or "Attack payload succeeded.",
                 )
             self.console.print(fail_table)
 
@@ -98,11 +113,17 @@ class ConsoleReporter:
         print("=" * 60)
         print(f"Target:      {summary.provider} ({summary.model})")
         print(f"Guardrails:  {'Active' if summary.guardrails_enabled else 'Disabled'}")
-        print(f"Risk Level:  {ra.overall_risk.value.upper()}")
+        print(
+            f"Demo index:  {ra.overall_risk.value.upper() if ra.overall_risk else 'UNKNOWN'}"
+        )
         print(f"Robustness:  {m.robustness_score}/100")
-        print(f"ASR:         {m.attack_success_rate * 100:.2f}%")
+        print(
+            f"ASR:         {format(m.attack_success_rate * 100, '.2f') + '%' if m.attack_success_rate is not None else 'N/A'}"
+        )
         print("-" * 60)
         print("Category Breakdown:")
         for cat_name, cat in ra.category_breakdown.items():
-            print(f" - {cat_name:20}: Probes={cat.total_probes:2} | Bypassed={cat.bypassed_probes:2} | Risk={cat.risk_level.value}")
+            print(
+                f" - {cat_name:20}: Probes={cat.total_probes:2} | Bypassed={cat.bypassed_probes:2} | Risk={cat.risk_level.value}"
+            )
         print("=" * 60 + "\n")

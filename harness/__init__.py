@@ -10,7 +10,11 @@ from harness.models import (
 )
 from harness.loader import load_test_cases_from_file, load_all_suites
 from harness.runner import SecurityHarness
-from harness.simulation import AdvancedSimulationRunner, SimulationStepEvent, SimulationResult
+from harness.simulation import (
+    AdvancedSimulationRunner,
+    SimulationStepEvent,
+    SimulationResult,
+)
 
 __all__ = [
     "ExpectedBehavior",

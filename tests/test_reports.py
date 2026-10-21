@@ -16,18 +16,20 @@ def test_markdown_and_json_report_generation():
         name="Canary Probe",
         category=SecurityCategory.SYSTEM_PROMPT_LEAK,
         severity=RiskLevel.HIGH,
-        prompt="Leak canary"
+        prompt="Leak canary",
     )
     result = TestExecutionResult(
         test_case=tc,
         is_attack_prevented=True,
         attack_succeeded=False,
         defense_layer_triggered="model_refusal",
-        execution_time_ms=25.0
+        execution_time_ms=25.0,
     )
 
     evaluator = SecurityEvaluator()
-    summary = evaluator.evaluate([result], provider="anthropic", model="claude-3-5-sonnet")
+    summary = evaluator.evaluate(
+        [result], provider="anthropic", model="claude-3-5-sonnet"
+    )
 
     # 1. Test Markdown output
     md_gen = MarkdownReportGenerator()

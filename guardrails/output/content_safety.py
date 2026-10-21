@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import re
 from typing import Any, Dict, List, Optional
-from guardrails.base import BaseGuardrail, GuardrailAction, GuardrailResult, GuardrailViolation, RiskLevel
+from guardrails.base import (
+    BaseGuardrail,
+    GuardrailAction,
+    GuardrailResult,
+    GuardrailViolation,
+    RiskLevel,
+)
 
 
 class ContentSafetyGuardrail(BaseGuardrail):
@@ -40,7 +46,9 @@ class ContentSafetyGuardrail(BaseGuardrail):
         """Determines if the response is a defensive, safe refusal."""
         return any(bool(re.search(pat, text)) for pat in self.SAFE_REFUSAL_SIGNATURES)
 
-    def evaluate(self, text: str, context: Optional[Dict[str, Any]] = None) -> GuardrailResult:
+    def evaluate(
+        self, text: str, context: Optional[Dict[str, Any]] = None
+    ) -> GuardrailResult:
         violations: List[GuardrailViolation] = []
 
         # Check for adversarial compliance signatures
@@ -52,7 +60,7 @@ class ContentSafetyGuardrail(BaseGuardrail):
                         rule_name="AdversarialCompliance",
                         description="Model appears to have complied with an adversarial or jailbreak request.",
                         snippet=match.group(0),
-                        severity=RiskLevel.HIGH
+                        severity=RiskLevel.HIGH,
                     )
                 )
 
@@ -61,9 +69,9 @@ class ContentSafetyGuardrail(BaseGuardrail):
                 guardrail_name=self.name,
                 action=GuardrailAction.BLOCK,
                 risk_level=RiskLevel.HIGH,
-                confidence=0.9,
+                confidence=None,
                 violations=violations,
-                metadata={"compliance_detected": True, "is_refusal": False}
+                metadata={"compliance_detected": True, "is_refusal": False},
             )
 
         is_refusal = self.is_safe_refusal(text)
@@ -71,7 +79,7 @@ class ContentSafetyGuardrail(BaseGuardrail):
             guardrail_name=self.name,
             action=GuardrailAction.ALLOW,
             risk_level=RiskLevel.NONE,
-            confidence=1.0,
+            confidence=None,
             violations=[],
-            metadata={"compliance_detected": False, "is_refusal": is_refusal}
+            metadata={"compliance_detected": False, "is_refusal": is_refusal},
         )

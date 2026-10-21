@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import re
 from typing import Any, Dict, List, Optional
-from guardrails.base import BaseGuardrail, GuardrailAction, GuardrailResult, GuardrailViolation, RiskLevel
+from guardrails.base import (
+    BaseGuardrail,
+    GuardrailAction,
+    GuardrailResult,
+    GuardrailViolation,
+    RiskLevel,
+)
 
 
 def _luhn_checksum_valid(card_number: str) -> bool:
@@ -35,31 +41,43 @@ class PIIDetectorGuardrail(BaseGuardrail):
     """
 
     EMAIL_REGEX = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
-    PHONE_REGEX = re.compile(r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b")
+    PHONE_REGEX = re.compile(
+        r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"
+    )
     SSN_REGEX = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
     CREDIT_CARD_REGEX = re.compile(r"\b(?:\d{4}[-\s]?){3}\d{4}\b|\b\d{13,19}\b")
-    
+
     # Credential & Token signatures
-    API_KEY_REGEX = re.compile(r"\b(?:sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36})\b")
+    API_KEY_REGEX = re.compile(
+        r"\b(?:sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36})\b"
+    )
     PRIVATE_KEY_REGEX = re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")
 
     def __init__(
         self,
         name: str = "PIIDetector",
         block_on_secrets: bool = True,
-        block_on_high_risk_pii: bool = True
+        block_on_high_risk_pii: bool = True,
     ) -> None:
         super().__init__(name=name)
         self.block_on_secrets = block_on_secrets
         self.block_on_high_risk_pii = block_on_high_risk_pii
 
-    def evaluate(self, text: str, context: Optional[Dict[str, Any]] = None) -> GuardrailResult:
+    def evaluate(
+        self, text: str, context: Optional[Dict[str, Any]] = None
+    ) -> GuardrailResult:
         violations: List[GuardrailViolation] = []
         highest_risk = RiskLevel.NONE
 
         def elevate_risk(new_risk: RiskLevel) -> None:
             nonlocal highest_risk
-            order = [RiskLevel.NONE, RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.CRITICAL]
+            order = [
+                RiskLevel.NONE,
+                RiskLevel.LOW,
+                RiskLevel.MEDIUM,
+                RiskLevel.HIGH,
+                RiskLevel.CRITICAL,
+            ]
             if order.index(new_risk) > order.index(highest_risk):
                 highest_risk = new_risk
 
@@ -71,7 +89,7 @@ class PIIDetectorGuardrail(BaseGuardrail):
                     rule_name="PII:PrivateKey",
                     description="Cryptographic private key header detected in text.",
                     snippet="-----BEGIN PRIVATE KEY-----...",
-                    severity=RiskLevel.CRITICAL
+                    severity=RiskLevel.CRITICAL,
                 )
             )
 
@@ -84,7 +102,7 @@ class PIIDetectorGuardrail(BaseGuardrail):
                     rule_name="PII:APIKey",
                     description="Cloud provider or service API key pattern detected.",
                     snippet=key_preview,
-                    severity=RiskLevel.CRITICAL
+                    severity=RiskLevel.CRITICAL,
                 )
             )
 
@@ -99,7 +117,7 @@ class PIIDetectorGuardrail(BaseGuardrail):
                         rule_name="PII:CreditCard",
                         description="Valid Luhn-verified Payment Card Number detected.",
                         snippet=masked_card,
-                        severity=RiskLevel.HIGH
+                        severity=RiskLevel.HIGH,
                     )
                 )
 
@@ -111,7 +129,7 @@ class PIIDetectorGuardrail(BaseGuardrail):
                     rule_name="PII:SSN",
                     description="US Social Security Number format detected.",
                     snippet="***-**-" + match.group(0)[-4:],
-                    severity=RiskLevel.HIGH
+                    severity=RiskLevel.HIGH,
                 )
             )
 
@@ -123,7 +141,7 @@ class PIIDetectorGuardrail(BaseGuardrail):
                     rule_name="PII:Email",
                     description="Personal or corporate email address detected.",
                     snippet=match.group(0),
-                    severity=RiskLevel.LOW
+                    severity=RiskLevel.LOW,
                 )
             )
 
@@ -135,7 +153,7 @@ class PIIDetectorGuardrail(BaseGuardrail):
                     rule_name="PII:Phone",
                     description="Phone number sequence detected.",
                     snippet=match.group(0),
-                    severity=RiskLevel.LOW
+                    severity=RiskLevel.LOW,
                 )
             )
 
@@ -153,7 +171,7 @@ class PIIDetectorGuardrail(BaseGuardrail):
             guardrail_name=self.name,
             action=action,
             risk_level=highest_risk,
-            confidence=1.0 if violations else 1.0,
+            confidence=None,
             violations=violations,
-            metadata={"total_entities_detected": len(violations)}
+            metadata={"total_entities_detected": len(violations)},
         )

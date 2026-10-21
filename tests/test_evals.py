@@ -9,20 +9,22 @@ from guardrails.base import RiskLevel
 from harness.models import SecurityCategory, SecurityTestCase, TestExecutionResult
 
 
-def _create_mock_result(test_id: str, prevented: bool, severity: RiskLevel = RiskLevel.HIGH) -> TestExecutionResult:
+def _create_mock_result(
+    test_id: str, prevented: bool, severity: RiskLevel = RiskLevel.HIGH
+) -> TestExecutionResult:
     tc = SecurityTestCase(
         id=test_id,
         name=f"Test {test_id}",
         category=SecurityCategory.PROMPT_INJECTION,
         severity=severity,
-        prompt="Test probe"
+        prompt="Test probe",
     )
     return TestExecutionResult(
         test_case=tc,
         is_attack_prevented=prevented,
         attack_succeeded=not prevented,
         defense_layer_triggered="input_guardrail" if prevented else None,
-        execution_time_ms=15.0
+        execution_time_ms=15.0,
     )
 
 

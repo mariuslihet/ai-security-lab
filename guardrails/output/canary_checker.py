@@ -7,7 +7,13 @@ from __future__ import annotations
 
 import re
 from typing import Any, Dict, List, Optional
-from guardrails.base import BaseGuardrail, GuardrailAction, GuardrailResult, GuardrailViolation, RiskLevel
+from guardrails.base import (
+    BaseGuardrail,
+    GuardrailAction,
+    GuardrailResult,
+    GuardrailViolation,
+    RiskLevel,
+)
 
 
 class CanaryLeakGuardrail(BaseGuardrail):
@@ -19,22 +25,24 @@ class CanaryLeakGuardrail(BaseGuardrail):
     DEFAULT_CANARIES = [
         "CANARY_TOKEN_SEC_9942",
         "SECRET_CONFIDENTIAL_DIRECTIVE",
-        "CANARY_SYSTEM_PROMPT_DO_NOT_REVEAL"
+        "CANARY_SYSTEM_PROMPT_DO_NOT_REVEAL",
     ]
 
     def __init__(
-        self,
-        name: str = "CanaryLeakChecker",
-        canary_tokens: Optional[List[str]] = None
+        self, name: str = "CanaryLeakChecker", canary_tokens: Optional[List[str]] = None
     ) -> None:
         super().__init__(name=name)
-        self.canary_tokens = list(canary_tokens) if canary_tokens else list(self.DEFAULT_CANARIES)
+        self.canary_tokens = (
+            list(canary_tokens) if canary_tokens else list(self.DEFAULT_CANARIES)
+        )
 
     def add_canary(self, token: str) -> None:
         if token not in self.canary_tokens:
             self.canary_tokens.append(token)
 
-    def evaluate(self, text: str, context: Optional[Dict[str, Any]] = None) -> GuardrailResult:
+    def evaluate(
+        self, text: str, context: Optional[Dict[str, Any]] = None
+    ) -> GuardrailResult:
         violations: List[GuardrailViolation] = []
         tokens_to_check = list(self.canary_tokens)
 
@@ -51,7 +59,7 @@ class CanaryLeakGuardrail(BaseGuardrail):
                         rule_name="CanaryLeak",
                         description=f"Secret canary marker '{canary}' detected in model output.",
                         snippet=canary,
-                        severity=RiskLevel.CRITICAL
+                        severity=RiskLevel.CRITICAL,
                     )
                 )
 
@@ -60,15 +68,15 @@ class CanaryLeakGuardrail(BaseGuardrail):
                 guardrail_name=self.name,
                 action=GuardrailAction.BLOCK,
                 risk_level=RiskLevel.CRITICAL,
-                confidence=1.0,
+                confidence=None,
                 violations=violations,
-                metadata={"leaked_canary_count": len(violations)}
+                metadata={"leaked_canary_count": len(violations)},
             )
 
         return GuardrailResult(
             guardrail_name=self.name,
             action=GuardrailAction.ALLOW,
             risk_level=RiskLevel.NONE,
-            confidence=1.0,
-            violations=[]
+            confidence=None,
+            violations=[],
         )

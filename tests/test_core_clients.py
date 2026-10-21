@@ -3,6 +3,21 @@ Unit tests for Core LLM Provider Clients and Factory.
 """
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def isolated_provider_environment(monkeypatch):
+    for key in (
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "AZURE_OPENAI_API_KEY",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_PROFILE",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
+
+
 from core.base import GenerationConfig
 from core.factory import get_llm_client, list_available_providers, ProviderType
 from core.openai_client import OpenAIClient
@@ -40,7 +55,10 @@ def test_diagnostic_fallback_mode_when_unconfigured():
     assert response.is_emulated is True
     assert response.provider == "openai"
     assert response.content != ""
-    assert "safety policies" in response.content.lower() or "cannot comply" in response.content.lower()
+    assert (
+        "safety policies" in response.content.lower()
+        or "cannot comply" in response.content.lower()
+    )
 
 
 def test_provider_status_inspection():

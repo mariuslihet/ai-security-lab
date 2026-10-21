@@ -32,7 +32,9 @@ def load_test_cases_from_file(file_path: Union[str, Path]) -> List[SecurityTestC
         elif path.suffix.lower() == ".json":
             raw_data = json.load(f)
         else:
-            raise ValueError(f"Unsupported file extension: {path.suffix}. Expected .yaml, .yml or .json")
+            raise ValueError(
+                f"Unsupported file extension: {path.suffix}. Expected .yaml, .yml or .json"
+            )
 
     if not raw_data:
         return []
@@ -44,11 +46,15 @@ def load_test_cases_from_file(file_path: Union[str, Path]) -> List[SecurityTestC
         elif "test_cases" in raw_data:
             raw_items = raw_data["test_cases"]
         else:
-            raise ValueError(f"Invalid test suite structure in {file_path}. Expected list or dict with 'tests' or 'test_cases' key.")
+            raise ValueError(
+                f"Invalid test suite structure in {file_path}. Expected list or dict with 'tests' or 'test_cases' key."
+            )
     elif isinstance(raw_data, list):
         raw_items = raw_data
     else:
-        raise ValueError(f"Invalid test suite structure in {file_path}. Expected list or dict with 'tests' or 'test_cases' key.")
+        raise ValueError(
+            f"Invalid test suite structure in {file_path}. Expected list or dict with 'tests' or 'test_cases' key."
+        )
 
     test_cases: List[SecurityTestCase] = []
     for item in raw_items:
@@ -60,8 +66,10 @@ def load_test_cases_from_file(file_path: Union[str, Path]) -> List[SecurityTestC
                 item["expected_behavior"] = "refuse"
             elif "mask" in eb:
                 item["expected_behavior"] = "mask"
+            elif eb == "allow":
+                item["expected_behavior"] = "allow"
             else:
-                item["expected_behavior"] = "block"
+                raise ValueError(f"Unknown expected behavior: {eb}")
         test_case = SecurityTestCase.model_validate(item)
         test_cases.append(test_case)
 
@@ -84,13 +92,16 @@ def load_all_suites(data_dir: Union[str, Path]) -> Dict[str, List[SecurityTestCa
 
     suites: Dict[str, List[SecurityTestCase]] = {}
     for ext in ("*.yaml", "*.yml", "*.json"):
-        for file in sorted(dir_path.glob(ext)):
+        for file in sorted(dir_path.rglob(ext)):
             suite_name = file.stem
-            try:
-                cases = load_test_cases_from_file(file)
-                if cases:
-                    suites[suite_name] = cases
-            except Exception as err:
-                print(f"[Warning] Failed loading test suite {file.name}: {err}")
+            cases = load_test_cases_from_file(file)
+            if suite_name in suites:
+                raise ValueError(f"Duplicate suite name: {suite_name}")
+            if cases:
+                suites[suite_name] = cases
+
+    ids = [case.id for cases in suites.values() for case in cases]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Duplicate test IDs across datasets")
 
     return suites

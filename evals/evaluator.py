@@ -16,9 +16,16 @@ from harness.models import TestExecutionResult
 
 class SecurityEvaluationSummary(BaseModel):
     """Unified evaluation model containing all metrics, risk grades, and probe logs."""
+
     provider: str
+    execution_mode: str = "demo"
+    evidence_notice: str = (
+        "Synthetic fixtures; not a live provider security assessment."
+    )
     model: str
-    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
     guardrails_enabled: bool = True
     metrics: RobustnessMetrics
     risk_assessment: RiskAssessment
@@ -38,7 +45,7 @@ class SecurityEvaluator:
         results: List[TestExecutionResult],
         provider: str,
         model: str,
-        guardrails_enabled: bool = True
+        guardrails_enabled: bool = True,
     ) -> SecurityEvaluationSummary:
         metrics = calculate_metrics(results)
         assessment = self.risk_scorer.assess_risk(results)
@@ -49,5 +56,5 @@ class SecurityEvaluator:
             guardrails_enabled=guardrails_enabled,
             metrics=metrics,
             risk_assessment=assessment,
-            results=results
+            results=results,
         )
