@@ -33,7 +33,7 @@ def create_app(db_path=None):
         if app.state.service is not None:
             app.state.service.close()
 
-    app = FastAPI(title="AI Security Lab · Demo", version="2.1.0", lifespan=lifespan)
+    app = FastAPI(title="AI Security Lab · Demo", version="2.3.0", lifespan=lifespan)
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"],
@@ -101,6 +101,9 @@ def create_app(db_path=None):
                 for k, v in PROVIDERS.items()
             ],
             "profiles": list(PROFILES),
+            "scenarios": __import__(
+                "harness.scenarios", fromlist=["SCENARIOS"]
+            ).SCENARIOS,
             "suites": service().catalog(),
         }
 
@@ -125,6 +128,43 @@ def create_app(db_path=None):
             | {"metrics": {name: a["metrics"] for name, a in r["arms"].items()}}
             for r in service().store.list(limit, offset)
         ]
+
+    @app.get("/api/compare")
+    def compare(before: str, after: str):
+        from evals.comparison import compare_runs
+
+        return compare_runs(record(before), record(after))
+
+    @app.post("/api/runs/{identifier}/verify", status_code=202)
+    def verify(identifier: str):
+        old = record(identifier)
+        snapshot = old.get("fixture_snapshot", [])
+        if not snapshot or any("demo_response" not in c for c in snapshot):
+            raise HTTPException(
+                409, "Fresh fixture snapshots are required for verification."
+            )
+        config = {
+            **old["config"],
+            "policy": {},
+            "named_policies": {},
+            "guardrails": True,
+            "compare": False,
+        }
+        try:
+            new_id = service().start(
+                RunRequest.model_validate(config),
+                cases_override=[SecurityTestCase.model_validate(c) for c in snapshot],
+                source_run=identifier,
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(429, str(exc)) from exc
+        return {
+            "id": new_id,
+            "source_run": identifier,
+            "notice": "Full protection rerun includes original benign controls; inspect results, not just execution status.",
+        }
 
     @app.get("/api/runs/{identifier}")
     def get_run(identifier: str):
@@ -247,6 +287,10 @@ def create_app(db_path=None):
                 await websocket.close()
             except RuntimeError:
                 pass
+
+    from dashboard.workspace import workspace_router
+
+    app.include_router(workspace_router(service))
 
     app.mount(
         "/static", StaticFiles(directory=ROOT / "dashboard/static"), name="static"

@@ -1,6 +1,7 @@
 """Print-friendly, escaped report built exclusively from stored evidence."""
 
 from html import escape
+import json
 
 
 def render_run_report(run):
@@ -33,7 +34,7 @@ def render_run_report(run):
         )
         rows = "".join(
             f"<tr><td>{text(r['test_case']['id'])}<small>{text(r['test_case']['name'])}</small></td>"
-            f"<td>{text(r['verdict'])}</td><td>{text(r['defense_layer_triggered'])}</td>"
+            f"<td>{text(r['verdict'])}<small>Expected: {text(', '.join(r.get('expected_verdicts', [])) or 'No contract')} · {text('Regression' if r.get('expectation_met') is False else 'Matched' if r.get('expectation_met') is True else 'Not assessed')}</small></td><td>{text(r['defense_layer_triggered'])}</td>"
             f"<td>{text('; '.join(r['evidence']) or r['error'] or r['notes'])}</td></tr>"
             for r in arm["results"]
         )
@@ -46,6 +47,7 @@ def render_run_report(run):
         f"<p class='notice'>{text(run['notice'])}</p><p><strong>Run:</strong> {text(run['id'])}<br>"
         f"<strong>Status:</strong> {text(run['status'])} · {run['completed']} / {run['planned']} executions<br>"
         f"<strong>Target:</strong> {text(run['config']['provider'])} · {text(run['config']['profile'])} · seed {run['config']['seed']}<br>"
+        f"<strong>Application and policy:</strong> {text(run['config'].get('scenario', 'suite'))} · {text(json.dumps(run['config'].get('policy', {})))}<br>"
         f"<strong>Dataset SHA256:</strong> <code>{text(run['dataset_sha256'])}</code><br>"
         f"<strong>Created:</strong> {text(run['created_at'])}</p><button onclick='window.print()'>Print / Save PDF</button></header>"
         + "".join(sections)

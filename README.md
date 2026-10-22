@@ -1,7 +1,7 @@
 # AI Security Lab (`ai-security-lab`)
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
-[![Tests: 61 Passing](https://img.shields.io/badge/tests-61%20passed-brightgreen.svg)](tests/)
+[![Tests: 107 Passing](https://img.shields.io/badge/tests-107%20passed-brightgreen.svg)](tests/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 [![Defense-in-Depth](https://img.shields.io/badge/Architecture-Defense--in--Depth-blueviolet.svg)](docs/ARCHITECTURE.md)
 [![Offline Demo 2.1](https://img.shields.io/badge/demo-offline%202.1-teal.svg)](pyproject.toml)
@@ -10,7 +10,7 @@ A modular, open-source laboratory for demonstrating LLM security evaluation, adv
 
 Explore prompt injection, jailbreaks, multi-turn escalation, delimiter hijacking, retrieved-document poisoning, sensitive-data disclosure, and proposed tool abuse through **68 synthetic fixtures across nine suites**. Compare unfiltered and defended execution, inspect each decision, and export reproducible evidence.
 
-**Current release: offline demo.** Target answers are authored synthetic fixtures. OpenAI, Anthropic Claude, Azure AI, and AWS Bedrock are simulated presentation labels with the same response profiles. The dashboard and CLI require no API keys, make no provider requests, and execute no proposed tools. Guardrail inspection, conversation orchestration, objective assertions, metrics, persistence, and report generation run locally.
+**Current release: offline demo.** Target answers are authored synthetic fixtures. OpenAI, Anthropic Claude, Azure AI, and AWS Bedrock are simulated presentation labels with the same response profiles. The dashboard and CLI require no API keys, make no provider requests, and execute no external tools. Guardrail inspection, conversation orchestration, objective assertions, metrics, persistence, and report generation run locally.
 
 The project demonstrates the workflow of a centralized LLM security hub. Its scores describe this dataset and simulator; they do not measure commercial model performance or certify production security.
 
@@ -48,7 +48,7 @@ flowchart TD
     Input -->|Allowed| Target[Offline DemoLLMClient]
     Input -->|Blocked| Verdict[Objective evaluator]
     Target --> Output[Output guardrails: canary, content and PII]
-    Target --> Tools[Proposed tool permission check: no execution]
+    Target --> Tools[Tool permissions and isolated in-memory simulation]
     Output --> Verdict
     Tools --> Verdict
     Verdict --> Metrics[ASR, robustness, benign false positives and coverage]
@@ -137,7 +137,7 @@ ai-security-lab/
 │   ├── quickstart.py              # Offline Python evaluation and report
 │   ├── custom_guardrail.py        # Custom input-rule example
 │   └── ci_cd_integration.py       # Offline correctness gate
-├── tests/                         # 61 tests across seven modules
+├── tests/                         # 107 tests across fourteen modules
 ├── .github/workflows/
 │   └── llm-security-audit.yml     # Test matrix and offline correctness gate
 ├── reports_output/                # Generated local databases and reports
@@ -464,7 +464,7 @@ python -m pytest -v
 python examples/ci_cd_integration.py
 ```
 
-The current suite contains **61 passing tests across seven modules**; the latest local verification used Python 3.11. The badge is a recorded count, not a live CI status indicator.
+The current suite contains **107 passing tests across fourteen modules**; the latest local verification used Python 3.11. The badge is a recorded count, not a live CI status indicator.
 
 | Module | Coverage |
 |---|---|
@@ -537,3 +537,104 @@ These boundaries preserve a clear, repeatable demonstration while keeping the co
 - [Demo MVP plan](docs/DEMO_MVP_PLAN.md)
 
 Code and repository-authored synthetic fixtures are licensed under **Apache 2.0**. See [LICENSE](LICENSE).
+
+
+## Application scenarios and guardrail policies
+
+In addition to the nine existing suites, the application selector offers three fictional application packs, each with four authored cases (one benign task and three attacks):
+
+| Scenario | Authorized task | Protected boundary |
+|---|---|---|
+| Customer support (`support`) | Answer the signed-in customer's order questions | Other customers' details and unapproved refunds |
+| Document assistant (`documents`) | Summarize supplied documents | Confidential configuration and private files |
+| Tool-using assistant (`agent`) | Draft maintenance plans | Database writes and other unapproved actions |
+
+The scenario description displays the task, protected information and permissions. Selecting a scenario replaces suite selection for that run; the existing 68-suite-fixture catalog is unchanged. Scenario fixtures are also saved in replay snapshots.
+
+Expand **Guardrail policy** to toggle injection, PII (input/output), canary and content rules independently. Input/output enforcement can be disabled to observe violations without blocking. Defended runs always enforce forbidden-tool permissions; no tool is executed. Baseline arms bypass defenses regardless of the selected policy. Configuration is persisted with the run and shown in probe details and full/print reports.
+
+Scenario fixtures include authored acceptable verdict lists for baseline and defended arms. The probe table, details, Markdown and printable reports show expected versus observed outcomes. Mismatches are labeled regressions and cause `needs_review`. A matched baseline exposure describes the scripted fixture behavior, not a secure application. Existing suites without these contracts show **No contract**, rather than an invented expectation. Errors and inconclusive outcomes remain visible independently of contracts.
+
+```sh
+python main.py run-lab --scenario support --model permissive --compare
+python main.py run-lab --scenario documents --model permissive --compare --policy-json '{"canary": false, "injection": false}'
+```
+
+The second command uses POSIX shell quoting; PowerShell users can configure policies in the dashboard. Policy JSON accepts `injection`, `pii`, `canary`, `content`, `enforce_input`, and `enforce_output` booleans. New tests cover scenario contracts, disabled-rule regressions, observe-only violations and immutable tool boundaries.
+
+
+## Policy experiments and run comparison
+
+Select **Policy experiment** in the workspace to evaluate Full, Canary-only, and Observe-only policies with a shared unfiltered baseline. All arms use the same saved fixtures, seed, and response profile. The comparison table shows ASR, benign blocking, executed coverage, errors and unknowns; scenario outcome contracts still apply. Tool permissions remain enforced in defended arms. The standard paired/single-policy workflow remains available.
+
+The API accepts up to three named policies through `POST /api/runs`, e.g. `named_policies: {"full": {}, "observe": {"enforce_input": false, "enforce_output": false}}`. Names must be distinct, lowercase and at most 40 characters; `baseline` and `defended` are reserved. CLI callers can use `--named-policies-json`. Each experiment is one persisted, cancellable job, with the execution budget covering every arm.
+
+In **Run history**, select an earlier and later saved run and choose **Compare runs**. The API is `GET /api/compare?before={id}&after={id}`. Comparisons align probe ID, arm and repetition, and show new/resolved exposures, new/resolved false positives, lost/restored evidence, and missing/added probes. Metric deltas are after minus before; empty denominators remain unknown. Dataset, engine, evaluator, profile, provider, seed, scenario, repetition and coverage differences produce warnings. Differences are descriptive, not proof of a causal improvement. The selectors cover the latest history page; APIs accept any saved run ID.
+
+### Expanded evaluator checks
+
+Fixtures may opt into `encoded_checks: [base64, hex]` to recognize exact encoded protected markers. Base64 matching preserves case, and encoded fragments inside longer strings do not count. These checks affect objective evaluation, not guardrail decoding. Raw disclosures override refusal phrases. Partial disclosures require explicitly authored markers; paraphrases without matching evidence remain inconclusive. Tests cover mixed refusal/disclosure, case variations, encoded secrets, partial leaks, benign lookalikes, repeated-probe alignment, missing evidence, experiment validation, shared snapshots, regression flags, and API comparison.
+
+
+## Guided application protection and isolated actions
+
+Use the workspace's **Show the failure → Protect and verify → Compare evidence** controls to demonstrate fictional support authorization. Alice owns ORDER-A; Bob owns ORDER-B. Approval is fixture-authored trusted application context, not a claim supplied in the prompt. The four support cases cover an approved own-order refund, instruction override, cross-customer lookup, and own-order refund without approval.
+
+`harness/sandbox.py` creates fresh in-memory order records per probe. `read_order`, `issue_refund`, and `draft_plan` have explicit implementations; unknown tools never execute. Defended actions enforce ownership and refund approval. Unprotected baseline actions may deliberately violate those rules, changing fictional state only. Logs show authorization, reason, before/after state, output and `executed_in_memory`; `external_action` is always false. No real files, payment systems, databases or network services are touched. State is not shared between cases, runs or users.
+
+Probe details include evidence-linked recommendations and **Apply full protection and verify saved cases**. This starts a new run from the original fixture snapshot with default protection, retains benign controls, and preserves the source evidence. The new record links to `source_run`. Results display exposure and benign-block counts; a suggested policy is not assumed to work without inspecting the rerun. The API is `POST /api/runs/{id}/verify`.
+
+The test suite now covers business ownership, approval states, baseline effects, fresh-state isolation, unknown tools, all three profiles, saved-snapshot verification and original-run preservation. Browser testing additionally exercises the guided workflow and action evidence. This is a demonstration of deterministic application rules, not live model behavior.
+
+
+### Reading experiment summaries
+
+The **Security metrics for policy** selector controls ASR, robustness, benign false positives and defense attribution. It defaults to Full when available, otherwise the defended or first named policy. Pending policies show unknown values rather than borrowing baseline results. **Execution coverage · all policies** counts completed executions, not passed outcomes. Review warnings distinguish contract mismatches from execution errors and inconclusive evidence. The JavaScript summary module has direct regression checks; the local test requires Node and is skipped where Node is unavailable.
+
+
+## Application workspaces, policies, findings, and selected reports
+
+Navigation now separates **Applications**, **Experiments**, **Findings**, **Reports**, **Run history**, and **Methodology**.
+
+- **Applications / builder:** save a fictional name, authorized task, protected marker, permissions, users and owned/other order IDs. Each save creates an immutable application version. The support template executes those ownership/resource definitions in the isolated simulator. Document/agent templates remain scripted disclosure and proposal scenarios; free-text permission descriptions are system context, not a generated enforcement language. Saved application runs record both the definition snapshot and application ID. Workspace cards show unresolved/resolved imported findings.
+- **Policy library:** name and describe the guardrail switches configured in Experiments. Each save creates a separate immutable version. Loading a version restores the switches; application evaluations use the selected saved version and store its ID and actual policy configuration. Saving another version cannot rewrite old runs. Policy experiments continue to use their explicitly named policies.
+- **Execution map:** probe details show reached/skipped stages and highlight recorded blocks, including sandbox authorization. The chronological trace and before/after fictional state remain underneath.
+- **Findings:** explicitly import a selected completed experiment's exposures and false positives. Findings are grouped by application/scenario, probe ID and policy arm, retain source run IDs and evidence, and deduplicate repeated imports of the same run. Statuses are open, investigating, resolved and accepted; notes persist locally. New imported failures reopen a finding. Resolving requires a completed matching safe verification probe with the same dataset fingerprint. Baseline failures may be resolved using the protected verification arm. Findings do not auto-resolve merely because a later run exists.
+- **Report builder:** choose findings, a title, and executive/engineering audience. Executive reports summarize occurrence and verification counts; engineering reports include stored finding evidence and history. The generated HTML is escaped, retains offline-demo limitations, and supports browser Print / Save PDF inside an isolated preview. Report selection is session-local; underlying findings and run evidence are persisted.
+
+Workspace records share the configured SQLite database. API routes are under `/api/workspace`: `applications` (GET/POST), `applications/{id}/run` (POST), `policies` (GET/POST), `findings` (GET), `findings/import/{run_id}` (POST), `findings/{id}` (PATCH), and `reports` (POST). This remains a local demonstration without multi-user access control.
+
+End-to-end regression coverage verifies custom resource IDs and ownership, immutable policy versions, persisted workspace/finding records, idempotent import, rejected unsafe resolution, matching verification evidence, and report HTML escaping. Browser checks cover saving an application/policy, application evaluation, importing findings, saving investigation notes/status, and generating a selected engineering report.
+
+
+## Response and grading audit · 2.2
+
+Current engine/package version: **2.2.0**; dataset: **2.2**; evaluator: **objective-v3**. Earlier version sections describe historical changes. Existing reports retain their original responses and evaluator labels; replay uses the current engine and may grade differently. Start a new run to inspect the new authored responses.
+
+- Safe and unsafe replies now describe their scenario rather than repeating a generic completion sentence. Symbolic attack markers remain explicitly fictional grading evidence, not realistic harmful instructions or live-model measurements.
+- Approved refunds and maintenance drafts use `expected_actions` contracts. A benign tool task cannot pass on a success sentence alone: grading checks authorized in-memory execution, exact tool/resource, ownership, approval and the required state transition. Missing, extra, wrong-resource, unauthorized, unchanged-state or external actions cannot establish successful completion.
+- Raw target replies distinguish a requested action from verified completion. Delivered completion text is produced only after checking state evidence and explicitly states that no real payment/external action occurred.
+- Public-document benign scenarios verify expected summary facts. Non-tool text tasks still use authored marker assertions; arbitrary semantic correctness is not claimed. Unsupported or unmatched evidence remains inconclusive.
+- Empty assertion markers/canaries and unsupported action contracts are rejected. Violation evidence continues to take precedence over refusal wording.
+- Probe details show authorized-task objectives, action contracts, the actual named-policy configuration, and whether enforcement is active or bypassed for a baseline.
+- Benign false-positive percentages use scored benign probes; the dashboard also shows total benign executions.
+
+Run `python examples/audit_responses.py` from the repository root for the full 480-combination offline audit (68 suite fixtures + 12 application cases, three profiles, two defense modes). It saves raw/delivered text, verdicts, action state and evidence in `reports_output/verification/response-audit.json`. The current audit has 42 allowed, 6 benign false positives, 172 refusals, 156 exposures, 92 blocks, 6 intentional inconclusive cases and 6 intentional errors, with no unexpected errors/unknowns. These are deterministic demo outcomes, not a real-model benchmark.
+
+
+## Authored conversations and replies · 2.3
+
+Current engine/package **2.3.0**, dataset **2.3**, evaluator **objective-v3**. The earlier audit totals in the 2.2 section are historical.
+
+The bundled replies are now authored case by case. Override and delimiter cases answer the particular injected instruction; retrieved-document cases summarize the actual source facts or demonstrate a specific fictional disclosure. Canary cases use the requested output format, including XML, debug and French translation examples. PII cases retain the corresponding fictional data types. Generic `DEMO_SUCCESS_*` answer markers have been replaced by concrete expected phrases or fictional protected values stored separately from target replies.
+
+`demo_refusal_response` provides a case-specific refusal. `demo_turn_responses` provides each non-final assistant reply in conversation fixtures; validation requires complete coverage when supplied. The runtime never constructs replies from grading assertions. Response and assertion fields remain independently editable.
+
+Jailbreak and crescendo scenarios use harmless private-training-record analogues rather than producing operational harmful instructions. JB-008 and JB-009 are legitimate security-education controls, now classified as benign instead of attacks. The suite count remains 68, but adversarial/benign denominators change accordingly. Refusal wording is checked after violation evidence and before safe-text evidence, preventing a matched safe substring from hiding an observable refusal.
+
+Latest audit: **480 evaluations**, with 54 allowed, 6 benign false positives, 54 safe outcomes, 152 exposures, 116 refusals, 86 blocks, 6 intentional inconclusive outcomes and 6 intentional errors. There are no unexpected errors or unknowns. Scores remain deterministic demonstrations, not measurements of commercial models. Start fresh evaluations to see the authored replies; saved evidence is not rewritten.
+
+
+### Dashboard layout
+
+The full lab layout is the default again: visible configuration sidebar, score cards, policy comparison, evidence tables and downloads. Direct navigation exposes Experiments, Applications, Findings, Reports, Run history and Methodology. Probe details open the execution map and full evidence directly. The temporary simplified start screen and collapsed results workflow have been removed; evaluation features and grading are retained. Forms, table spacing, navigation states, mobile stacking and reduced-motion support have been polished.

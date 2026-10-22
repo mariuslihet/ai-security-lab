@@ -19,6 +19,17 @@ app = typer.Typer(
 
 @app.command()
 def run_lab(
+    scenario: str = typer.Option(
+        "suite", "--scenario", help="suite, support, documents or agent"
+    ),
+    policy_json: str = typer.Option(
+        "{}", "--policy-json", help="Guardrail policy JSON overrides"
+    ),
+    named_policies_json: str = typer.Option(
+        "{}",
+        "--named-policies-json",
+        help="Up to three named policy JSON objects; adds a shared baseline",
+    ),
     provider: str = typer.Option("openai", "--provider", "-p"),
     model: str = typer.Option(
         "balanced",
@@ -47,6 +58,9 @@ def run_lab(
         raise typer.BadParameter("Report format must be all, markdown, json or none")
     try:
         request = RunRequest(
+            scenario=scenario,
+            policy=json.loads(policy_json),
+            named_policies=json.loads(named_policies_json),
             provider=provider,
             profile=model,
             suite=Path(suite).stem if suite != "all" else suite,

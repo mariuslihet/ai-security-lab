@@ -12,18 +12,53 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from core.demo_client import DemoLLMClient
 from harness.loader import load_all_suites
 from harness.models import SecurityTestCase
+from harness.applications import ApplicationDefinition
 from harness.runner import SecurityHarness
 from evals.evaluator import SecurityEvaluator
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
+class GuardrailPolicy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    injection: bool = True
+    pii: bool = True
+    canary: bool = True
+    content: bool = True
+    enforce_input: bool = True
+    enforce_output: bool = True
+
+    def engine(self):
+        from guardrails.engine import GuardrailEngine
+        from guardrails.input.prompt_injection import PromptInjectionGuardrail
+        from guardrails.input.pii_detector import PIIDetectorGuardrail
+        from guardrails.output.canary_checker import CanaryLeakGuardrail
+        from guardrails.output.content_safety import ContentSafetyGuardrail
+
+        inputs, outputs = [], []
+        if self.injection:
+            inputs.append(PromptInjectionGuardrail())
+        if self.pii:
+            inputs.append(PIIDetectorGuardrail())
+            outputs.append(PIIDetectorGuardrail(name="OutputPIIDetector"))
+        if self.canary:
+            outputs.append(CanaryLeakGuardrail())
+        if self.content:
+            outputs.append(ContentSafetyGuardrail())
+        return GuardrailEngine(inputs, outputs, self.enforce_input, self.enforce_output)
+
+
 class RunRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    application: ApplicationDefinition | None = None
+    application_id: str | None = None
+    policy_id: str | None = None
+    scenario: Literal["suite", "support", "documents", "agent"] = "suite"
+    policy: GuardrailPolicy = Field(default_factory=GuardrailPolicy)
     provider: Literal["openai", "anthropic", "azure", "bedrock"] = "openai"
     profile: Literal["balanced", "resilient", "permissive"] = "balanced"
     suite: str = Field(default="prompt_injections", max_length=100)
@@ -35,6 +70,24 @@ class RunRequest(BaseModel):
     max_tokens: int = Field(default=100000, ge=1, le=1000000)
     max_seconds: int = Field(default=60, ge=1, le=300)
     custom_case: SecurityTestCase | None = None
+    named_policies: dict[str, GuardrailPolicy] = Field(
+        default_factory=dict, max_length=3
+    )
+
+    @field_validator("named_policies")
+    @classmethod
+    def validate_names(cls, value):
+        import re
+
+        if any(
+            not re.fullmatch(r"[a-z][a-z0-9_-]{0,39}", name)
+            or name in ("baseline", "defended")
+            for name in value
+        ):
+            raise ValueError(
+                "Use distinct policy names of 1–40 lowercase letters, digits, hyphens or underscores; baseline/defended are reserved"
+            )
+        return value
 
 
 class RunStore:
@@ -112,7 +165,15 @@ class RunService:
         ]
 
     def cases(self, request):
-        if request.custom_case:
+        if request.application:
+            from harness.applications import application_cases
+
+            cases = application_cases(request.application)
+        elif request.scenario != "suite":
+            from harness.scenarios import scenario_cases
+
+            cases = scenario_cases(request.scenario)
+        elif request.custom_case:
             cases = [request.custom_case]
         else:
             suites = load_all_suites(self.data_dir)
@@ -126,11 +187,21 @@ class RunService:
             raise ValueError("The selected suite is empty")
         return cases * request.repetitions
 
-    def start(self, request, background=True, cases_override=None):
+    def start(self, request, background=True, cases_override=None, source_run=None):
         cases = self.cases(request) if cases_override is None else cases_override
         if not cases:
             raise ValueError("No fixture evidence to replay")
-        arms = [False, True] if request.compare else [request.guardrails]
+        arms = (
+            [("baseline", False, request.policy)]
+            + [(name, True, policy) for name, policy in request.named_policies.items()]
+            if request.named_policies
+            else [
+                ("baseline" if not enabled else "defended", enabled, request.policy)
+                for enabled in (
+                    [False, True] if request.compare else [request.guardrails]
+                )
+            ]
+        )
         planned = len(cases) * len(arms)
         if planned > request.max_tests:
             raise ValueError(
@@ -146,6 +217,7 @@ class RunService:
             self.cancelled[identifier] = cancel
         manifest = [c.model_dump(mode="json") for c in cases]
         record = {
+            "source_run": source_run,
             "id": identifier,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "status": "queued",
@@ -156,9 +228,9 @@ class RunService:
             "dataset_sha256": hashlib.sha256(
                 json.dumps(manifest, sort_keys=True).encode()
             ).hexdigest(),
-            "engine_version": "2.1.0",
-            "evaluator_version": "objective-v2",
-            "dataset_version": "2.1",
+            "engine_version": "2.3.0",
+            "evaluator_version": "objective-v3",
+            "dataset_version": "2.3",
             "completed": 0,
             "planned": planned,
             "arms": {},
@@ -178,10 +250,14 @@ class RunService:
         record["status"] = "running"
         self.store.save(record)
         try:
-            for enabled in arms:
-                name, results = ("defended" if enabled else "baseline"), []
+            for name, enabled, policy in arms:
+                results = []
                 client = DemoLLMClient(request.provider, request.profile, request.seed)
-                harness = SecurityHarness(client, use_guardrails=enabled)
+                harness = SecurityHarness(
+                    client,
+                    guardrail_engine=policy.engine(),
+                    use_guardrails=enabled,
+                )
                 for case in cases:
                     if cancel.is_set():
                         record["status"] = "cancelled"
@@ -219,6 +295,13 @@ class RunService:
                         )
                         break
                     result = harness.run_test(case)
+                    result.expected_verdicts = case.expected_verdicts.get(
+                        "defended" if enabled else "baseline", []
+                    )
+                    if result.expected_verdicts:
+                        result.expectation_met = (
+                            result.verdict in result.expected_verdicts
+                        )
                     results.append(result)
                     record["completed"] += 1
                     record["estimated_tokens"] += sum(
@@ -236,7 +319,14 @@ class RunService:
                     a["metrics"]["errors"] or a["metrics"]["inconclusive"]
                     for a in record["arms"].values()
                 )
-                record["status"] = "needs_review" if incomplete else "completed"
+                regression = any(
+                    r.get("expectation_met") is False
+                    for a in record["arms"].values()
+                    for r in a["results"]
+                )
+                record["status"] = (
+                    "needs_review" if incomplete or regression else "completed"
+                )
         except Exception as exc:
             record.update(status="error", error=str(exc))
         finally:

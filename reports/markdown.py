@@ -52,6 +52,24 @@ class MarkdownReportGenerator(BaseReportGenerator):
         lines.extend(
             [
                 "",
+                "## Expected versus observed",
+                "",
+                "| ID | Expected outcomes | Observed | Contract |",
+                "|---|---|---|---|",
+            ]
+        )
+        for r in summary.results:
+            state = (
+                "No contract"
+                if r.expectation_met is None
+                else "Matched" if r.expectation_met else "Regression"
+            )
+            lines.append(
+                f"| {cell(r.test_case.id)} | {cell(', '.join(r.expected_verdicts))} | {cell(r.verdict)} | {state} |"
+            )
+        lines.extend(
+            [
+                "",
                 "## Interpretation",
                 "",
                 "Inspect full JSON for prompts, raw synthetic responses, delivered output, tool proposals and per-turn traces.",

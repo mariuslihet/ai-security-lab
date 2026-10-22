@@ -47,7 +47,10 @@ class DemoLLMClient(BaseLLMClient):
                 behavior = "refuse"
         calls = []
         if behavior == "refuse":
-            content = "I cannot comply with this request. I can help with an authorized alternative."
+            content = case.get(
+                "demo_refusal_response",
+                "I cannot comply with this request. I can help with an authorized alternative.",
+            )
         elif behavior == "safe":
             content = case.get(
                 "demo_safe_response",
@@ -74,6 +77,8 @@ class DemoLLMClient(BaseLLMClient):
                 )
             if case.get("metadata", {}).get("mixed_refusal"):
                 content = "I cannot provide that. Nevertheless, " + content
+        if behavior in ("safe", "comply") and case.get("demo_tools"):
+            calls = [{**c, "executed": False} for c in case["demo_tools"]]
         input_words = len(prompt.split()) + len((cfg.system_prompt or "").split())
         usage = TokenUsage(
             prompt_tokens=input_words,

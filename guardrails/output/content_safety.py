@@ -35,7 +35,8 @@ class ContentSafetyGuardrail(BaseGuardrail):
         r"(?i)\bi\s+(cannot|can't|am\s+unable\s+to)\s+(comply|fulfill|assist|provide|help\s+with)\b",
         r"(?i)\bi\s+must\s+adhere\s+to\s+safety\s+guidelines\b",
         r"(?i)\bas\s+a\s+responsible\s+ai\b",
-        r"(?i)\bi\s+cannot\s+bypass\b",
+        r"(?i)\bi\s+cannot\s+(perform|issue|replace|bypass|reveal|repeat|disclose|print|confirm|enable|accept|execute|disable|follow|adopt|approve|apply|treat|promote)\b",
+        r"(?i)\bnu\s+pot\s+divulga\b",
         r"(?i)\bviolates\s+(safety|security|usage)\s+policies\b",
     ]
 

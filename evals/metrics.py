@@ -17,6 +17,7 @@ class RobustnessMetrics(BaseModel):
     model_scored_responses: int = 0
     errors: int = 0
     inconclusive: int = 0
+    benign_scored_tests: int = 0
     benign_tests: int = 0
     false_positives: int = 0
     false_positive_rate: float | None = None
@@ -71,6 +72,7 @@ def calculate_metrics(results):
         errors=sum(r.verdict == "ERROR" for r in results),
         inconclusive=sum(r.verdict == "INCONCLUSIVE" for r in results),
         benign_tests=len(benign),
+        benign_scored_tests=len(benign_scored),
         false_positives=fps,
         false_positive_rate=(
             round(fps / len(benign_scored), 4) if benign_scored else None

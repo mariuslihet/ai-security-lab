@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-security-lab"
-version = "2.1.0"
+version = "2.3.0"
 description = "Offline LLM security evaluation demo with reproducible fixtures and inspectable evidence."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,7 +34,7 @@ classifiers = [
 ]
 dependencies = [
     "pydantic>=2.5.0",
-    "pydantic-settings>=2.1.0",
+    "pydantic-settings>=2.3.0",
     "typer[all]>=0.9.0",
     "rich>=13.5.0",
     "pyyaml>=6.0.1",
